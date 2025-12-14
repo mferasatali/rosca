@@ -165,7 +165,7 @@
                         </div>
                         <v-select
                           :model-value="calc.receivingMemberId"
-                          :items="members"
+                          :items="getAvailableMembers(index)"
                           item-title="name"
                           item-value="id"
                           label="Select Member"
@@ -441,6 +441,44 @@ const getMemberSummary = (member) => {
   }
   const memberId = member.id || props.members.indexOf(member)
   return calculateMemberSummary(calculations.value, memberId)
+}
+
+// Get available members for receiving (filtered based on roscaCount)
+const getAvailableMembers = (currentMonthIndex) => {
+  if (!calculations.value || calculations.value.length === 0) {
+    return props.members
+  }
+  
+  // Get current month's receiving member ID (if any)
+  const currentReceivingMemberId = calculations.value[currentMonthIndex]?.receivingMemberId
+  
+  // Count how many times each member has been selected as receivingMember
+  const receivingCounts = new Map()
+  
+  calculations.value.forEach((calc, index) => {
+    // Skip current month if it's already set (to allow changing)
+    if (index === currentMonthIndex) {
+      return
+    }
+    
+    if (calc.receivingMemberId) {
+      const count = receivingCounts.get(calc.receivingMemberId) || 0
+      receivingCounts.set(calc.receivingMemberId, count + 1)
+    }
+  })
+  
+  // Filter members who haven't reached their roscaCount limit
+  // OR include the currently selected member (so they can be changed)
+  return props.members.filter(member => {
+    const memberId = member.id
+    const timesReceived = receivingCounts.get(memberId) || 0
+    const roscaCount = member.roscaCount || 1
+    
+    // Include if:
+    // 1. They haven't reached their limit yet, OR
+    // 2. They are currently selected (to allow changing the selection)
+    return timesReceived < roscaCount || memberId === currentReceivingMemberId
+  })
 }
 
 const formatMonth = (monthString) => {

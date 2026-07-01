@@ -1,3 +1,4 @@
+@import './theme.css';
 @import './base.css';
 
 * {
@@ -14,22 +15,53 @@ html, body {
 
 #app {
   width: 100%;
-  height: 100vh;
+  min-height: 100vh;
   margin: 0;
   padding: 0;
-  font-weight: normal;
 }
 
-a,
-.green {
-  text-decoration: none;
-  color: hsla(160, 100%, 37%, 1);
-  transition: 0.4s;
-  padding: 3px;
+/* Vuetify overrides for cohesive design */
+.v-btn {
+  letter-spacing: 0.01em !important;
+  font-weight: 600 !important;
+  text-transform: none !important;
 }
 
-@media (hover: hover) {
-  a:hover {
-    background-color: hsla(160, 100%, 37%, 0.2);
-  }
+.v-btn--block {
+  flex: 0 0 auto !important;
 }
+
+.v-btn--size-large {
+  height: 44px !important;
+}
+
+.v-field--variant-outlined .v-field__outline {
+  --v-field-border-opacity: 0.15;
+}
+
+.v-field--focused .v-field__outline {
+  --v-field-border-opacity: 0.5;
+}
+
+.v-tab {
+  font-weight: 600 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+.v-snackbar__content {
+  font-weight: 500;
+}
+
+.v-dialog .v-overlay__content {
+  border-radius: var(--radius-xl) !important;
+}
+
+.v-expansion-panel-title {
+  font-weight: 600;
+}
+
+/* Gap utility used across components */
+.gap-2 { gap: 8px; }
+.gap-3 { gap: 12px; }
+.gap-4 { gap: 16px; }

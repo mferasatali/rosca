@@ -1,258 +1,243 @@
 <template>
-  <div class="app-container">
-    <!-- Modern Header -->
-    <v-app-bar 
-      color="transparent" 
-      elevation="0" 
-      class="modern-header"
-      height="70"
-      fixed
-    >
-      <div class="header-content">
-        <div class="logo-section">
+  <div class="app-root app-mesh-bg">
+
+    <!-- ═══ Top Navigation ═══ -->
+    <v-app-bar color="transparent" elevation="0" class="app-bar" :height="68" fixed>
+      <div class="bar-inner">
+        <v-btn
+          v-if="isMobile"
+          icon variant="text"
+          class="menu-btn"
+          @click="drawerOpen = true"
+        >
+          <v-icon icon="mdi-menu" size="24"></v-icon>
+        </v-btn>
+
+        <div class="logo-wrap">
           <div class="logo-icon">
-            <v-icon icon="mdi-account-group" size="32" color="primary"></v-icon>
+            <v-icon icon="mdi-account-group" size="26" color="white"></v-icon>
           </div>
           <div class="logo-text">
-            <h1 class="app-title">Rosca</h1>
-            <p class="app-subtitle">Manage Your Rosca</p>
+            <span class="logo-title">Rosca</span>
+            <span class="logo-sub">Kameeti Manager</span>
           </div>
         </div>
+
         <v-spacer></v-spacer>
-        <v-chip 
-          v-if="selectedGroup" 
-          color="success" 
-          variant="flat" 
-          size="large"
-          class="selected-chip"
+
+        <v-chip
+          v-if="selectedGroup && !isMobile"
+          color="primary" variant="flat" size="large"
+          prepend-icon="mdi-folder-open" class="active-chip"
         >
-          <v-icon start icon="mdi-check-circle"></v-icon>
           {{ selectedGroup.name }}
+          <template #append>
+            <v-btn icon="mdi-pencil" size="x-small" variant="text" class="ml-1" @click="editGroup"></v-btn>
+          </template>
         </v-chip>
+
+        <v-btn
+          :icon="isDark ? 'mdi-weather-sunny' : 'mdi-weather-night'"
+          variant="text"
+          class="theme-btn"
+          @click="$emit('toggle-theme')"
+          :title="isDark ? 'Light mode' : 'Dark mode'"
+        ></v-btn>
       </div>
     </v-app-bar>
 
-    <v-main class="main-content">
-      <div class="content-wrapper">
-        <div class="layout-grid">
-          <!-- Left Sidebar - Groups -->
-          <div class="sidebar-section">
-            <div class="glass-card groups-card">
-              <div class="card-header">
-                <div class="d-flex align-center mb-4">
-                  <div class="icon-wrapper primary">
-                    <v-icon icon="mdi-folder-multiple" size="24"></v-icon>
-                  </div>
-                  <h2 class="card-title">Your Groups</h2>
-                </div>
-              </div>
-              
-              <v-btn 
-                color="primary" 
-                size="x-large"
-                block 
-                class="create-btn mb-6" 
-                @click="showGroupForm = true"
-                prepend-icon="mdi-plus-circle"
-                variant="flat"
-              >
-                Create New Group
-              </v-btn>
+    <!-- ═══ Mobile Drawer ═══ -->
+    <v-navigation-drawer
+      v-if="isMobile"
+      v-model="drawerOpen"
+      temporary
+      location="left"
+      width="300"
+      class="mobile-drawer"
+    >
+      <SidebarPanel
+        :groups="groups"
+        :selected-group="selectedGroup"
+        @select="onSelectGroup"
+        @create="showGroupForm = true; drawerOpen = false"
+        @delete="deleteGroup"
+      />
+    </v-navigation-drawer>
 
-              <div v-if="groups.length > 0" class="groups-list">
-                <div
-                  v-for="group in groups"
-                  :key="group.id"
-                  :class="['group-item', { 'active': selectedGroup?.id === group.id }]"
-                  @click="selectGroup(group)"
-                >
-                  <div class="group-icon">
-                    <v-icon 
-                      :icon="selectedGroup?.id === group.id ? 'mdi-folder-open' : 'mdi-folder'" 
-                      size="28"
-                    ></v-icon>
-                  </div>
-                  <div class="group-info">
-                    <h3 class="group-name">{{ group.name }}</h3>
-                    <div class="group-meta">
-                      <span class="meta-item">
-                        <v-icon icon="mdi-calendar" size="14"></v-icon>
-                        {{ group.totalMonths }} months
-                      </span>
-                      <span class="meta-item">
-                        <v-icon icon="mdi-cash" size="14"></v-icon>
-                        PKR {{ group.monthlyAmount.toLocaleString() }}
-                      </span>
-                    </div>
-                  </div>
-                  <v-btn 
-                    icon="mdi-delete-outline" 
-                    variant="text" 
-                    color="error"
-                    size="small"
-                    @click.stop="deleteGroup(group.id)"
-                    class="delete-btn"
-                  ></v-btn>
-                </div>
-              </div>
-              
-              <div v-else class="empty-state">
-                <div class="empty-icon">
-                  <v-icon icon="mdi-folder-open-outline" size="64"></v-icon>
-                </div>
-                <h3 class="empty-title">No groups yet</h3>
-                <p class="empty-text">Create your first Rosca group to get started!</p>
-              </div>
-            </div>
-          </div>
+    <!-- ═══ Main Layout ═══ -->
+    <v-main class="app-main">
+      <div class="app-shell">
 
-          <!-- Right Content Area -->
-          <div class="content-section" v-if="selectedGroup">
-            <!-- Group Overview Cards -->
-            <div class="stats-grid mb-6">
-              <div class="stat-card">
-                <div class="stat-icon blue">
-                  <v-icon icon="mdi-calendar-month" size="28"></v-icon>
-                </div>
-                <div class="stat-content">
-                  <div class="stat-value">{{ selectedGroup.totalMonths }}</div>
+        <!-- Desktop Sidebar -->
+        <aside v-if="!isMobile" class="sidebar animate-in animate-in-1">
+          <SidebarPanel
+            :groups="groups"
+            :selected-group="selectedGroup"
+            @select="onSelectGroup"
+            @create="showGroupForm = true"
+            @delete="deleteGroup"
+          />
+        </aside>
+
+        <!-- Main Content -->
+        <div class="main-content">
+          <div class="content-area" v-if="selectedGroup">
+            <!-- Stats Row -->
+            <div class="overview-row mb-5 animate-in animate-in-2">
+              <div class="stat-card" data-color="blue">
+                <div class="stat-icon"><v-icon icon="mdi-calendar-month" size="24" color="white"></v-icon></div>
+                <div class="stat-body">
+                  <div class="stat-val">{{ selectedGroup.totalMonths }}</div>
                   <div class="stat-label">Total Months</div>
                 </div>
               </div>
-              
-              <div class="stat-card">
-                <div class="stat-icon green">
-                  <v-icon icon="mdi-cash" size="28"></v-icon>
-                </div>
-                <div class="stat-content">
-                  <div class="stat-value">PKR {{ selectedGroup.monthlyAmount.toLocaleString() }}</div>
+              <div class="stat-card" data-color="green">
+                <div class="stat-icon"><v-icon icon="mdi-cash" size="24" color="white"></v-icon></div>
+                <div class="stat-body">
+                  <div class="stat-val stat-val-sm">PKR {{ selectedGroup.monthlyAmount.toLocaleString() }}</div>
                   <div class="stat-label">Monthly Amount</div>
                 </div>
               </div>
-              
-              <div class="stat-card">
-                <div class="stat-icon purple">
-                  <v-icon icon="mdi-calendar-start" size="28"></v-icon>
-                </div>
-                <div class="stat-content">
-                  <div class="stat-value">{{ formatMonth(selectedGroup.startMonth) }}</div>
+              <div class="stat-card" data-color="teal">
+                <div class="stat-icon"><v-icon icon="mdi-calendar-start" size="24" color="white"></v-icon></div>
+                <div class="stat-body">
+                  <div class="stat-val">{{ formatMonth(selectedGroup.startMonth) }}</div>
                   <div class="stat-label">Start Month</div>
                 </div>
               </div>
-              
-              <div class="stat-card" :class="totalRoscaCount === selectedGroup.totalMonths ? 'success-border' : 'warning-border'">
-                <div class="stat-icon" :class="totalRoscaCount === selectedGroup.totalMonths ? 'success' : 'warning'">
-                  <v-icon 
-                    :icon="totalRoscaCount === selectedGroup.totalMonths ? 'mdi-check-circle' : 'mdi-alert-circle'" 
-                    size="28"
+              <div class="stat-card" :data-color="totalRoscaCount === selectedGroup.totalMonths ? 'success' : 'warning'">
+                <div class="stat-icon">
+                  <v-icon
+                    :icon="totalRoscaCount === selectedGroup.totalMonths ? 'mdi-check-circle' : 'mdi-alert-circle'"
+                    size="24" color="white"
                   ></v-icon>
                 </div>
-                <div class="stat-content">
-                  <div class="stat-value">{{ totalRoscaCount }} / {{ selectedGroup.totalMonths }}</div>
+                <div class="stat-body">
+                  <div class="stat-val">{{ totalRoscaCount }} / {{ selectedGroup.totalMonths }}</div>
                   <div class="stat-label">Rosca Count</div>
                 </div>
               </div>
+              <v-btn
+                icon="mdi-cog-outline"
+                size="small"
+                variant="text"
+                color="primary"
+                class="edit-group-btn"
+                @click="editGroup"
+                title="Edit Group"
+              ></v-btn>
             </div>
 
-            <!-- Members Section -->
-            <div class="glass-card mb-6">
-              <div class="card-header">
-                <div class="d-flex align-center justify-space-between">
-                  <div class="d-flex align-center">
-                    <div class="icon-wrapper success">
-                      <v-icon icon="mdi-account-group" size="24"></v-icon>
-                    </div>
-                    <h2 class="card-title">Members</h2>
+            <!-- Members -->
+            <div class="section-card mb-5 animate-in animate-in-3">
+              <div class="section-head">
+                <div class="d-flex align-center gap-3">
+                  <div class="icon-badge icon-badge--success">
+                    <v-icon icon="mdi-account-group" size="20" color="white"></v-icon>
                   </div>
-                  <v-btn 
-                    color="primary" 
-                    prepend-icon="mdi-account-plus"
-                    @click="showMemberForm = true"
-                    variant="flat"
-                    size="large"
-                  >
-                    Add Member
-                  </v-btn>
+                  <div>
+                    <h2 class="section-title">Members</h2>
+                    <p class="section-sub">
+                      {{ members.length }} member{{ members.length !== 1 ? 's' : '' }} ·
+                      Rosca total: {{ totalRoscaCount }}/{{ selectedGroup.totalMonths }}
+                    </p>
+                  </div>
                 </div>
-              </div>
-              
-              <div v-if="members.length > 0" class="members-table">
-                <div 
-                  v-for="member in members" 
-                  :key="member.id"
-                  class="member-row"
+                <v-btn
+                  color="primary" variant="tonal"
+                  prepend-icon="mdi-account-plus"
+                  @click="showMemberForm = true"
                 >
-                  <div class="member-avatar">
-                    <v-avatar color="primary" size="40">
-                      {{ member.name.charAt(0).toUpperCase() }}
-                    </v-avatar>
+                  Add Member
+                </v-btn>
+              </div>
+
+              <div v-if="members.length > 0" class="members-grid">
+                <div
+                  v-for="(member, idx) in members"
+                  :key="member.id"
+                  class="member-card"
+                  :style="{ animationDelay: `${idx * 50}ms` }"
+                >
+                  <div class="member-avatar" :style="{ '--hue': getAvatarHue(member.name) }">
+                    <span>{{ member.name.charAt(0).toUpperCase() }}</span>
                   </div>
                   <div class="member-info">
                     <div class="member-name">{{ member.name }}</div>
-                    <div class="member-details">
-                      <v-chip size="small" color="primary" variant="flat">
+                    <div class="d-flex align-center gap-2 mt-1 flex-wrap">
+                      <v-chip color="primary" size="x-small" variant="tonal">
                         {{ member.roscaCount }} Rosca
                       </v-chip>
                       <span v-if="member.phone" class="member-phone">
-                        <v-icon icon="mdi-phone" size="14"></v-icon>
-                        {{ member.phone }}
+                        <v-icon size="12">mdi-phone</v-icon>{{ member.phone }}
                       </span>
+                    </div>
+                    <div class="progress-wrap mt-2">
+                      <div
+                        class="progress-bar"
+                        :style="{ width: Math.min((member.roscaCount / selectedGroup.totalMonths) * 100, 100) + '%' }"
+                      ></div>
+                    </div>
+                    <div class="progress-label">
+                      {{ Math.round((member.roscaCount / selectedGroup.totalMonths) * 100) }}% of rosca pool
                     </div>
                   </div>
                   <div class="member-actions">
-                    <v-btn 
-                      icon="mdi-pencil" 
-                      size="small" 
-                      variant="text"
-                      color="primary"
-                      @click="editMember(member)"
-                    ></v-btn>
-                    <v-btn 
-                      icon="mdi-delete" 
-                      size="small" 
-                      variant="text"
-                      color="error"
-                      @click="deleteMember(member.id)"
-                    ></v-btn>
+                    <v-btn icon="mdi-pencil-outline" size="x-small" variant="text" color="primary" @click="editMember(member)"></v-btn>
+                    <v-btn icon="mdi-delete-outline" size="x-small" variant="text" color="error" @click="confirmDeleteMember(member)"></v-btn>
                   </div>
                 </div>
               </div>
-              
+
               <div v-else class="empty-state">
-                <div class="empty-icon">
-                  <v-icon icon="mdi-account-off-outline" size="64"></v-icon>
+                <div class="empty-icon-ring">
+                  <v-icon icon="mdi-account-plus-outline" size="48" color="primary"></v-icon>
                 </div>
-                <h3 class="empty-title">No members yet</h3>
-                <p class="empty-text">Add members to start managing your Rosca group</p>
+                <p>Add members to start managing your Rosca group</p>
+                <v-btn color="primary" variant="tonal" prepend-icon="mdi-account-plus" class="mt-3" @click="showMemberForm = true">
+                  Add First Member
+                </v-btn>
               </div>
             </div>
 
-            <!-- Calculations Section -->
-            <MonthlyCalculations
-              :group-data="selectedGroup"
-              :members="members"
-              :group-id="selectedGroup.id"
-              @saved="handleCalculationsSaved"
-              @error="(msg) => showSnackbar(msg, 'error', 'mdi-alert-circle')"
-            />
+            <div class="animate-in animate-in-4">
+              <MonthlyCalculations
+                :group-data="selectedGroup"
+                :members="members"
+                :group-id="selectedGroup.id"
+                @saved="handleCalculationsSaved"
+                @error="msg => showSnackbar(msg, 'error', 'mdi-alert-circle')"
+              />
+            </div>
           </div>
 
           <!-- Empty State -->
-          <div class="content-section" v-else>
-            <div class="glass-card empty-main">
-              <div class="empty-icon-large">
-                <v-icon icon="mdi-folder-open-outline" size="120"></v-icon>
+          <div class="content-area content-area--empty" v-else>
+            <div class="empty-main animate-in animate-in-2">
+              <div class="empty-hero">
+                <div class="empty-hero-ring">
+                  <v-icon icon="mdi-account-group-outline" size="72" color="primary"></v-icon>
+                </div>
+                <h2 class="empty-hero-title">Select a Group</h2>
+                <p class="empty-hero-sub">Choose a group from the sidebar, or create a new one to get started.</p>
+                <v-btn
+                  color="primary" variant="flat" size="large" rounded="xl"
+                  prepend-icon="mdi-plus-circle"
+                  class="mt-5 pulse-glow"
+                  @click="showGroupForm = true"
+                >
+                  Create First Group
+                </v-btn>
               </div>
-              <h2 class="empty-title-large">Select a Group</h2>
-              <p class="empty-text-large">Choose a group from the sidebar to view details and manage members</p>
             </div>
           </div>
         </div>
+
       </div>
     </v-main>
 
-    <!-- Dialogs -->
-    <v-dialog v-model="showGroupForm" max-width="700" persistent>
+    <!-- ═══ Dialogs ═══ -->
+    <v-dialog v-model="showGroupForm" max-width="680" scrollable>
       <RoscaGroupForm
         :group="editingGroup"
         @submit="handleGroupSubmit"
@@ -260,7 +245,7 @@
       />
     </v-dialog>
 
-    <v-dialog v-model="showMemberForm" max-width="700" persistent>
+    <v-dialog v-model="showMemberForm" max-width="600" scrollable>
       <MemberForm
         :member="editingMember"
         @submit="handleMemberSubmit"
@@ -268,77 +253,110 @@
       />
     </v-dialog>
 
-    <!-- Loading Overlay -->
-    <v-overlay :model-value="loading" class="align-center justify-center">
-      <div class="loading-container">
-        <v-progress-circular indeterminate size="64" color="primary"></v-progress-circular>
-        <div class="loading-text">Loading...</div>
+    <!-- Confirm Delete Dialog -->
+    <v-dialog v-model="confirmDialog.show" max-width="420">
+      <div class="confirm-dialog glass-surface">
+        <div class="confirm-icon" :class="confirmDialog.type">
+          <v-icon :icon="confirmDialog.type === 'error' ? 'mdi-delete-alert' : 'mdi-alert'" size="32" color="white"></v-icon>
+        </div>
+        <h3 class="confirm-title">{{ confirmDialog.title }}</h3>
+        <p class="confirm-msg">{{ confirmDialog.message }}</p>
+        <div class="confirm-actions">
+          <v-btn variant="outlined" size="large" @click="confirmDialog.show = false">Cancel</v-btn>
+          <v-btn :color="confirmDialog.type === 'error' ? 'error' : 'warning'" variant="flat" size="large" @click="confirmDialog.onConfirm()">
+            {{ confirmDialog.confirmText }}
+          </v-btn>
+        </div>
+      </div>
+    </v-dialog>
+
+    <!-- Loading -->
+    <v-overlay
+      :model-value="loading"
+      class="align-center justify-center loading-overlay"
+      persistent
+      scrim="rgba(0,0,0,0.35)"
+    >
+      <div class="loading-box">
+        <v-progress-circular indeterminate size="56" color="primary" width="3"></v-progress-circular>
+        <div class="loading-label">Loading…</div>
       </div>
     </v-overlay>
 
     <!-- Snackbar -->
-    <v-snackbar 
-      v-model="snackbar.show" 
-      :color="snackbar.color" 
-      timeout="3000" 
-      location="top"
+    <v-snackbar
+      v-model="snackbar.show"
+      :color="snackbar.color"
+      timeout="3500"
+      location="top right"
       rounded="lg"
       elevation="8"
     >
-      <div class="d-flex align-center">
-        <v-icon :icon="snackbar.icon" class="mr-2"></v-icon>
+      <div class="d-flex align-center gap-2">
+        <v-icon :icon="snackbar.icon" size="20"></v-icon>
         {{ snackbar.message }}
       </div>
+      <template #actions>
+        <v-btn icon="mdi-close" size="x-small" variant="text" @click="snackbar.show = false"></v-btn>
+      </template>
     </v-snackbar>
+
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import RoscaGroupForm from './RoscaGroupForm.vue'
 import MemberForm from './MemberForm.vue'
 import MonthlyCalculations from './MonthlyCalculations.vue'
+import SidebarPanel from './SidebarPanel.vue'
 import {
-  createRoscaGroup,
-  getRoscaGroups,
-  updateRoscaGroup,
-  deleteRoscaGroup,
-  addMember,
-  getMembers,
-  updateMember,
-  deleteMember as deleteMemberService
+  createRoscaGroup, getRoscaGroups, updateRoscaGroup, deleteRoscaGroup,
+  addMember, getMembers, updateMember, deleteMember as deleteMemberService
 } from '../services/roscaService'
 
-const groups = ref([])
+defineProps({ isDark: { type: Boolean, default: false } })
+defineEmits(['toggle-theme'])
+
+const groups        = ref([])
 const selectedGroup = ref(null)
-const members = ref([])
-const loading = ref(false)
-const showGroupForm = ref(false)
+const members       = ref([])
+const loading       = ref(false)
+const showGroupForm  = ref(false)
 const showMemberForm = ref(false)
-const editingGroup = ref(null)
-const editingMember = ref(null)
-const snackbar = ref({
-  show: false,
-  message: '',
-  color: 'success',
-  icon: 'mdi-check-circle'
-})
+const editingGroup   = ref(null)
+const editingMember  = ref(null)
+const drawerOpen     = ref(false)
+const isMobile       = ref(false)
+const snackbar       = ref({ show: false, message: '', color: 'success', icon: 'mdi-check-circle' })
+const confirmDialog  = ref({ show: false, title: '', message: '', confirmText: 'Confirm', type: 'error', onConfirm: () => {} })
 
-const totalRoscaCount = computed(() => {
-  return members.value.reduce((sum, member) => sum + (member.roscaCount || 0), 0)
-})
+const totalRoscaCount = computed(() =>
+  members.value.reduce((s, m) => s + (m.roscaCount || 0), 0)
+)
 
-onMounted(async () => {
-  await loadGroups()
-})
+const checkMobile = () => { isMobile.value = window.innerWidth < 900 }
+onMounted(() => { checkMobile(); window.addEventListener('resize', checkMobile); loadGroups() })
+onUnmounted(() => window.removeEventListener('resize', checkMobile))
+
+const getAvatarHue = (name) => {
+  let hash = 0
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash)
+  // Clamp to green–teal–blue range (no purple)
+  return 120 + (Math.abs(hash) % 80)
+}
+
+const onSelectGroup = async (group) => {
+  drawerOpen.value = false
+  await selectGroup(group)
+}
 
 const loadGroups = async () => {
   try {
     loading.value = true
     groups.value = await getRoscaGroups()
-  } catch (error) {
-    console.error('Error loading groups:', error)
-    showSnackbar('Error loading groups: ' + error.message, 'error', 'mdi-alert-circle')
+  } catch (e) {
+    showSnackbar('Error loading groups: ' + e.message, 'error', 'mdi-alert-circle')
   } finally {
     loading.value = false
   }
@@ -346,7 +364,7 @@ const loadGroups = async () => {
 
 const selectGroup = async (group) => {
   selectedGroup.value = group
-  editingGroup.value = null
+  editingGroup.value  = null
   await loadMembers(group.id)
 }
 
@@ -354,31 +372,31 @@ const loadMembers = async (groupId) => {
   try {
     loading.value = true
     members.value = await getMembers(groupId)
-  } catch (error) {
-    console.error('Error loading members:', error)
-    showSnackbar('Error loading members: ' + error.message, 'error', 'mdi-alert-circle')
+  } catch (e) {
+    showSnackbar('Error loading members: ' + e.message, 'error', 'mdi-alert-circle')
   } finally {
     loading.value = false
   }
 }
 
-const handleGroupSubmit = async (groupData) => {
+const handleGroupSubmit = async (data) => {
   try {
     loading.value = true
     if (editingGroup.value) {
-      await updateRoscaGroup(editingGroup.value.id, groupData)
-      showSnackbar('Group updated successfully!', 'success', 'mdi-check-circle')
+      await updateRoscaGroup(editingGroup.value.id, data)
+      if (selectedGroup.value?.id === editingGroup.value.id) {
+        selectedGroup.value = { ...selectedGroup.value, ...data }
+      }
+      showSnackbar('Group updated!', 'success', 'mdi-check-circle')
     } else {
-      const groupId = await createRoscaGroup(groupData)
-      groupData.id = groupId
-      groups.value.unshift(groupData)
-      showSnackbar('Group created successfully!', 'success', 'mdi-check-circle')
+      const id = await createRoscaGroup(data)
+      data.id = id
+      showSnackbar('Group created!', 'success', 'mdi-check-circle')
     }
     await loadGroups()
     closeGroupForm()
-  } catch (error) {
-    console.error('Error saving group:', error)
-    showSnackbar('Error saving group: ' + error.message, 'error', 'mdi-alert-circle')
+  } catch (e) {
+    showSnackbar('Error saving group: ' + e.message, 'error', 'mdi-alert-circle')
   } finally {
     loading.value = false
   }
@@ -391,727 +409,392 @@ const editGroup = () => {
 
 const closeGroupForm = () => {
   showGroupForm.value = false
-  editingGroup.value = null
+  editingGroup.value  = null
 }
 
-const deleteGroup = async (groupId) => {
-  if (!confirm('Are you sure you want to delete this group? This action cannot be undone.')) {
-    return
-  }
-  try {
-    loading.value = true
-    await deleteRoscaGroup(groupId)
-    if (selectedGroup.value?.id === groupId) {
-      selectedGroup.value = null
-      members.value = []
+const deleteGroup = (groupId) => {
+  confirmDialog.value = {
+    show: true,
+    title: 'Delete Group?',
+    message: 'This will permanently delete the group and all its data. This cannot be undone.',
+    confirmText: 'Delete',
+    type: 'error',
+    onConfirm: async () => {
+      confirmDialog.value.show = false
+      try {
+        loading.value = true
+        await deleteRoscaGroup(groupId)
+        if (selectedGroup.value?.id === groupId) {
+          selectedGroup.value = null
+          members.value = []
+        }
+        await loadGroups()
+        showSnackbar('Group deleted.', 'success', 'mdi-check-circle')
+      } catch (e) {
+        showSnackbar('Error deleting group: ' + e.message, 'error', 'mdi-alert-circle')
+      } finally {
+        loading.value = false
+      }
     }
-    await loadGroups()
-    showSnackbar('Group deleted successfully!', 'success', 'mdi-check-circle')
-  } catch (error) {
-    console.error('Error deleting group:', error)
-    showSnackbar('Error deleting group: ' + error.message, 'error', 'mdi-alert-circle')
-  } finally {
-    loading.value = false
   }
 }
 
-const handleMemberSubmit = async (memberData) => {
+const handleMemberSubmit = async (data) => {
   if (!selectedGroup.value) {
-    showSnackbar('Please select a group first', 'warning', 'mdi-alert')
+    showSnackbar('Select a group first.', 'warning', 'mdi-alert')
     return
   }
   try {
     loading.value = true
     if (editingMember.value) {
-      await updateMember(selectedGroup.value.id, editingMember.value.id, memberData)
-      showSnackbar('Member updated successfully!', 'success', 'mdi-check-circle')
+      await updateMember(selectedGroup.value.id, editingMember.value.id, data)
+      showSnackbar('Member updated!', 'success', 'mdi-check-circle')
     } else {
-      await addMember(selectedGroup.value.id, memberData)
-      showSnackbar('Member added successfully!', 'success', 'mdi-check-circle')
+      await addMember(selectedGroup.value.id, data)
+      showSnackbar('Member added!', 'success', 'mdi-check-circle')
     }
     await loadMembers(selectedGroup.value.id)
     closeMemberForm()
-  } catch (error) {
-    console.error('Error saving member:', error)
-    showSnackbar('Error saving member: ' + error.message, 'error', 'mdi-alert-circle')
+  } catch (e) {
+    showSnackbar('Error saving member: ' + e.message, 'error', 'mdi-alert-circle')
   } finally {
     loading.value = false
   }
 }
 
 const editMember = (member) => {
-  editingMember.value = { ...member }
+  editingMember.value  = { ...member }
   showMemberForm.value = true
 }
 
 const closeMemberForm = () => {
   showMemberForm.value = false
-  editingMember.value = null
+  editingMember.value  = null
 }
 
-const deleteMember = async (memberId) => {
-  if (!confirm('Are you sure you want to delete this member?')) {
-    return
-  }
-  try {
-    loading.value = true
-    await deleteMemberService(selectedGroup.value.id, memberId)
-    await loadMembers(selectedGroup.value.id)
-    showSnackbar('Member deleted successfully!', 'success', 'mdi-check-circle')
-  } catch (error) {
-    console.error('Error deleting member:', error)
-    showSnackbar('Error deleting member: ' + error.message, 'error', 'mdi-alert-circle')
-  } finally {
-    loading.value = false
+const confirmDeleteMember = (member) => {
+  confirmDialog.value = {
+    show: true,
+    title: 'Remove Member?',
+    message: `Are you sure you want to remove "${member.name}" from this group?`,
+    confirmText: 'Remove',
+    type: 'warning',
+    onConfirm: async () => {
+      confirmDialog.value.show = false
+      try {
+        loading.value = true
+        await deleteMemberService(selectedGroup.value.id, member.id)
+        await loadMembers(selectedGroup.value.id)
+        showSnackbar('Member removed.', 'success', 'mdi-check-circle')
+      } catch (e) {
+        showSnackbar('Error removing member: ' + e.message, 'error', 'mdi-alert-circle')
+      } finally {
+        loading.value = false
+      }
+    }
   }
 }
 
-const handleCalculationsSaved = () => {
-  showSnackbar('Calculations saved successfully!', 'success', 'mdi-check-circle')
-}
+const handleCalculationsSaved = () =>
+  showSnackbar('Calculations saved!', 'success', 'mdi-check-circle')
 
 const showSnackbar = (message, color = 'success', icon = 'mdi-check-circle') => {
   snackbar.value = { show: true, message, color, icon }
 }
 
-const formatMonth = (monthString) => {
-  if (!monthString) return '-'
-  const [year, month] = monthString.split('-')
-  const date = new Date(year, parseInt(month) - 1)
-  return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+const formatMonth = (s) => {
+  if (!s) return '-'
+  const [yr, mo] = s.split('-')
+  return new Date(yr, parseInt(mo) - 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
 }
 </script>
 
 <style scoped>
-.app-container {
-  width: 100%;
+/* ── Root ── */
+.app-root {
   min-height: 100vh;
-  background: linear-gradient(135deg, #F1F5F9 0%, #E2E8F0 50%, #CBD5E1 100%);
-  background-attachment: fixed;
-  overflow-x: hidden;
-}
-
-.modern-header {
-  backdrop-filter: blur(20px);
-  background: rgba(255, 255, 255, 0.85) !important;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-  padding: 0 24px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-}
-
-.header-content {
-  max-width: 100%;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  padding: 0 16px;
-}
-
-.main-content {
-  padding-top: 70px !important;
-  width: 100%;
-  min-height: calc(100vh - 70px);
-}
-
-.content-wrapper {
-  width: 100%;
-  height: 100%;
-  padding: 20px;
-}
-
-.layout-grid {
-  display: grid;
-  grid-template-columns: 380px 1fr;
-  gap: 20px;
-  max-width: 100%;
-  height: 100%;
-}
-
-.sidebar-section {
-  min-width: 0;
-}
-
-.content-section {
-  min-width: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  max-height: calc(100vh - 110px);
-  padding-right: 8px;
-  padding-bottom: 20px;
-}
-
-.content-section::-webkit-scrollbar {
-  width: 8px;
-}
-
-.content-section::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-  margin: 8px 0;
-}
-
-.content-section::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.3);
-  border-radius: 10px;
-  border: 2px solid transparent;
-  background-clip: padding-box;
-}
-
-.content-section::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.5);
-  background-clip: padding-box;
-}
-
-.logo-section {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.logo-icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, #0891B2 0%, #0D9488 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 12px rgba(8, 145, 178, 0.2);
-}
-
-.logo-text {
-  color: #1e293b;
-}
-
-.app-title {
-  font-size: 28px;
-  font-weight: 700;
-  margin: 0;
-  color: #0F172A;
-  letter-spacing: -0.5px;
-}
-
-.app-subtitle {
-  font-size: 14px;
-  margin: 0;
-  color: #64748B;
-  font-weight: 500;
-}
-
-.main-content {
-  padding-top: 70px !important;
-  width: 100%;
-  min-height: calc(100vh - 70px);
-}
-
-.glass-card {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border-radius: 20px;
-  padding: 32px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.04);
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.glass-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.06);
-}
-
-.card-header {
-  margin-bottom: 24px;
-}
-
-.card-title {
-  font-size: 24px;
-  font-weight: 700;
-  margin: 0;
-  color: #1e293b;
-}
-
-.icon-wrapper {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-right: 12px;
-}
-
-.icon-wrapper.primary {
-  background: linear-gradient(135deg, #0891B2 0%, #0D9488 100%);
-  color: white;
-  box-shadow: 0 2px 8px rgba(8, 145, 178, 0.2);
-  transition: all 0.3s ease;
-}
-
-.icon-wrapper.primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(8, 145, 178, 0.3);
-}
-
-.icon-wrapper.success {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  color: white;
-}
-
-.create-btn {
-  border-radius: 12px;
-  height: 56px;
-  font-weight: 600;
-  font-size: 16px;
-  box-shadow: 0 2px 8px rgba(8, 145, 178, 0.2);
-  transition: all 0.3s ease;
-}
-
-.create-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(8, 145, 178, 0.3);
-}
-
-.groups-card {
-  height: fit-content;
-  max-height: calc(100vh - 160px);
-  overflow-y: auto;
-  overflow-x: hidden;
-  position: sticky;
-  top: 80px;
-}
-
-.groups-card::-webkit-scrollbar {
-  width: 6px;
-}
-
-.groups-card::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-}
-
-.groups-card::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 10px;
-}
-
-.groups-card::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.3);
-}
-
-.groups-list {
   display: flex;
   flex-direction: column;
+}
+
+/* ── App Bar ── */
+.app-bar {
+  backdrop-filter: blur(24px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+  background: var(--bg-glass) !important;
+  border-bottom: 1px solid var(--border-subtle) !important;
+  box-shadow: var(--shadow-xs) !important;
+}
+.bar-inner {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
   gap: 12px;
 }
+.logo-wrap { display: flex; align-items: center; gap: 14px; }
+.logo-icon {
+  width: 42px; height: 42px; border-radius: 12px;
+  background: var(--brand-primary);
+  display: flex; align-items: center; justify-content: center;
+  transition: transform var(--duration-normal) var(--ease-spring);
+}
+.logo-wrap:hover .logo-icon { transform: scale(1.03); }
+.logo-title { font-size: 22px; font-weight: 800; color: var(--text-primary); display: block; line-height: 1.1; letter-spacing: -0.03em; }
+.logo-sub { font-size: 11px; color: var(--text-muted); font-weight: 600; display: block; text-transform: uppercase; letter-spacing: 0.08em; }
+.active-chip { font-weight: 700 !important; }
+.theme-btn { opacity: 0.7; transition: opacity var(--duration-fast); }
+.theme-btn:hover { opacity: 1; }
 
-.group-item {
+/* ── Full-Viewport Shell ── */
+.app-main {
+  height: 100vh !important;
+  padding-top: var(--app-bar-height) !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  padding-bottom: 0 !important;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+.app-shell {
   display: flex;
-  align-items: center;
-  padding: 20px;
-  border-radius: 16px;
-  background: white;
-  border: 2px solid transparent;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  height: 100%;
+  min-height: 0;
 }
-
-.group-item:hover {
-  transform: translateX(4px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-}
-
-.group-item.active {
-  background: linear-gradient(135deg, rgba(8, 145, 178, 0.1) 0%, rgba(13, 148, 136, 0.1) 100%);
-  border-color: #0891B2;
-  box-shadow: 0 4px 20px rgba(8, 145, 178, 0.2);
-  transform: translateX(4px);
-}
-
-.group-icon {
-  margin-right: 16px;
-  color: #0891B2;
-}
-
-.group-info {
+.main-content {
   flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  height: 100%;
 }
-
-.group-name {
-  font-size: 18px;
-  font-weight: 700;
-  margin: 0 0 8px 0;
-  color: #1e293b;
+.content-area {
+  min-width: 0;
+  padding: 20px 24px 32px;
+  min-height: 100%;
 }
-
-.group-meta {
-  display: flex;
-  gap: 16px;
-  font-size: 14px;
-  color: #64748b;
-}
-
-.meta-item {
+.content-area--empty {
   display: flex;
   align-items: center;
-  gap: 4px;
+  justify-content: center;
 }
 
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 16px;
-  margin-bottom: 24px;
+/* ── Sidebar ── */
+.sidebar {
+  width: var(--sidebar-width);
+  flex-shrink: 0;
+  height: 100%;
+  border-right: 1px solid var(--border-subtle);
+  background: var(--bg-glass-strong);
+  overflow-y: auto;
 }
 
-.stat-card {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border-radius: 20px;
+/* ── Section Card ── */
+.section-card {
+  background: var(--bg-elevated);
+  border-radius: var(--radius-md);
   padding: 24px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  transition: all 0.3s ease;
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--duration-normal);
+}
+.section-card:hover {
+  box-shadow: var(--shadow-md);
 }
 
+/* ── Stats ── */
+.overview-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr) auto;
+  gap: 14px;
+  align-items: stretch;
+}
+.stat-card {
+  background: var(--bg-elevated);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--duration-normal) var(--ease-spring), box-shadow var(--duration-normal);
+  position: relative;
+  overflow: hidden;
+}
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 3px; height: 100%;
+  border-radius: 3px 0 0 3px;
+}
+.stat-card[data-color="blue"]::before    { background: linear-gradient(180deg, #0d9488, #0f766e); }
+.stat-card[data-color="green"]::before   { background: linear-gradient(180deg, #10b981, #059669); }
+.stat-card[data-color="teal"]::before    { background: linear-gradient(180deg, #14b8a6, #0d9488); }
+.stat-card[data-color="success"]::before { background: linear-gradient(180deg, #10b981, #059669); }
+.stat-card[data-color="warning"]::before { background: linear-gradient(180deg, #f59e0b, #d97706); }
 .stat-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
 }
 
 .stat-icon {
-  width: 64px;
-  height: 64px;
-  border-radius: 16px;
+  width: 48px; height: 48px;
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.stat-card[data-color="blue"] .stat-icon    { background: linear-gradient(135deg, #0d9488, #0f766e); }
+.stat-card[data-color="green"] .stat-icon  { background: linear-gradient(135deg, #10b981, #059669); }
+.stat-card[data-color="teal"] .stat-icon   { background: linear-gradient(135deg, #14b8a6, #0d9488); }
+.stat-card[data-color="success"] .stat-icon { background: linear-gradient(135deg, #10b981, #059669); }
+.stat-card[data-color="warning"] .stat-icon { background: linear-gradient(135deg, #f59e0b, #d97706); }
+
+.stat-val { font-size: 22px; font-weight: 800; color: var(--text-primary); letter-spacing: -0.02em; }
+.stat-val-sm { font-size: 16px; }
+.stat-label { font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 2px; }
+.edit-group-btn { align-self: center; }
+
+/* ── Members ── */
+.section-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
+.section-title { font-size: 20px; font-weight: 800; color: var(--text-primary); margin: 0; letter-spacing: -0.02em; }
+.section-sub { font-size: 13px; margin: 0; color: var(--text-muted); font-weight: 500; }
+
+.members-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.member-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-muted);
+  border: 1px solid var(--border-subtle);
+  transition: background var(--duration-fast), border-color var(--duration-fast);
+  animation: fadeSlideUp var(--duration-slow) var(--ease-smooth) both;
+}
+.member-card:hover {
+  border-color: var(--border-default);
+  background: var(--bg-elevated);
+}
+.member-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, hsl(var(--hue), 55%, 40%), hsl(calc(var(--hue) + 20), 55%, 34%));
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 16px;
+  font-weight: 700;
   color: white;
 }
-
-.stat-icon.blue {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+.member-info { flex: 1; min-width: 0; }
+.member-name { font-size: 14px; font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.member-phone { font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 4px; }
+.member-actions {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  margin-left: 8px;
 }
 
-.stat-icon.green {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-}
+.progress-wrap { width: 100%; height: 5px; background: var(--border-subtle); border-radius: var(--radius-full); overflow: hidden; }
+.progress-bar { height: 100%; background: var(--brand-gradient); border-radius: var(--radius-full); transition: width var(--duration-slow) var(--ease-smooth); }
+.progress-label { font-size: 11px; color: var(--text-muted); margin-top: 4px; font-weight: 500; }
 
-.stat-icon.purple {
-  background: linear-gradient(135deg, #0891B2 0%, #0D9488 100%);
-}
-
-.stat-icon.success {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-}
-
-.stat-icon.warning {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-}
-
-.stat-content {
-  flex: 1;
-}
-
-.stat-value {
-  font-size: 24px;
-  font-weight: 800;
-  color: #1e293b;
-  margin-bottom: 4px;
-}
-
-.stat-label {
-  font-size: 14px;
-  color: #64748b;
-  font-weight: 500;
-}
-
-.success-border {
-  border-color: #10b981;
-}
-
-.warning-border {
-  border-color: #f59e0b;
-}
-
-.members-table {
+/* ── Empty States ── */
+.empty-state { text-align: center; padding: 32px 0; }
+.empty-state p { color: var(--text-muted); font-size: 14px; }
+.empty-main {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  width: 100%;
+  min-height: calc(100vh - var(--app-bar-height) - 80px);
+  padding: 40px 24px;
 }
+.empty-hero-sub { color: var(--text-muted); font-size: 15px; max-width: 400px; }
+.empty-icon-ring, .empty-hero-ring {
+  width: 110px; height: 110px;
+  border-radius: 50%;
+  margin: 0 auto 20px;
+  background: var(--brand-gradient-subtle);
+  border: 2px solid var(--border-strong);
+  display: flex; align-items: center; justify-content: center;
+}
+.empty-hero-title { font-size: 28px; font-weight: 800; color: var(--text-primary); margin: 0 0 8px; letter-spacing: -0.03em; }
 
-.member-row {
+/* ── Confirm Dialog ── */
+.confirm-dialog { padding: 32px; text-align: center; }
+.confirm-icon {
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  margin: 0 auto 20px;
+  display: flex; align-items: center; justify-content: center;
+}
+.confirm-icon.error { background: linear-gradient(135deg, #ef4444, #dc2626); box-shadow: 0 4px 20px rgba(239,68,68,0.35); }
+.confirm-icon.warning { background: linear-gradient(135deg, #f59e0b, #d97706); box-shadow: 0 4px 20px rgba(245,158,11,0.35); }
+.confirm-title { font-size: 20px; font-weight: 800; color: var(--text-primary); margin-bottom: 8px; }
+.confirm-msg { font-size: 14px; color: var(--text-secondary); margin-bottom: 24px; line-height: 1.6; }
+.confirm-actions { display: flex; gap: 12px; justify-content: center; }
+
+/* ── Loading (fullscreen centered) ── */
+.loading-overlay {
+  position: fixed !important;
+  inset: 0;
+  z-index: 9999;
+  backdrop-filter: blur(6px);
+}
+.loading-overlay :deep(.v-overlay__content) {
   display: flex;
   align-items: center;
-  padding: 20px;
-  border-radius: 16px;
-  background: white;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  transition: all 0.3s ease;
+  justify-content: center;
 }
-
-.member-row:hover {
-  transform: translateX(4px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-}
-
-.member-avatar {
-  margin-right: 16px;
-}
-
-.member-info {
-  flex: 1;
-}
-
-.member-name {
-  font-size: 18px;
-  font-weight: 700;
-  color: #1e293b;
-  margin-bottom: 8px;
-}
-
-.member-details {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.member-phone {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 14px;
-  color: #64748b;
-}
-
-.empty-state {
+.loading-box {
+  background: var(--bg-elevated);
+  padding: 48px 64px;
+  border-radius: var(--radius-xl);
   text-align: center;
-  padding: 48px 24px;
+  box-shadow: var(--shadow-xl), var(--shadow-glow);
+  border: 1px solid var(--border-strong);
+}
+.loading-label { font-size: 15px; font-weight: 600; color: var(--text-secondary); margin-top: 18px; }
+
+/* ── Mobile Drawer ── */
+.mobile-drawer :deep(.v-navigation-drawer__content) {
+  padding: 0;
+  background: var(--bg-base);
 }
 
-.empty-icon {
-  margin-bottom: 16px;
-  opacity: 0.5;
-}
-
-.empty-title {
-  font-size: 20px;
-  font-weight: 700;
-  color: #1e293b;
-  margin-bottom: 8px;
-}
-
-.empty-text {
-  font-size: 14px;
-  color: #64748b;
-}
-
-.empty-main {
-  text-align: center;
-  padding: 80px 24px;
-}
-
-.empty-icon-large {
-  margin-bottom: 24px;
-  opacity: 0.3;
-}
-
-.empty-title-large {
-  font-size: 32px;
-  font-weight: 800;
-  color: #1e293b;
-  margin-bottom: 12px;
-}
-
-.empty-text-large {
-  font-size: 16px;
-  color: #64748b;
-}
-
-.loading-container {
-  background: white;
-  padding: 48px;
-  border-radius: 24px;
-  text-align: center;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-}
-
-.loading-text {
-  margin-top: 16px;
-  font-size: 16px;
-  font-weight: 600;
-  color: #1e293b;
-}
-
-.selected-chip {
-  font-weight: 600;
-  font-size: 14px;
-}
-
-/* Responsive Design */
+/* ── Responsive ── */
 @media (max-width: 1200px) {
-  .layout-grid {
-    grid-template-columns: 340px 1fr;
-    gap: 16px;
-  }
-  
-  .content-wrapper {
-    padding: 16px;
-  }
-}
-
-@media (max-width: 960px) {
-  .layout-grid {
-    grid-template-columns: 1fr;
-    gap: 16px;
-  }
-  
-  .sidebar-section {
-    order: 2;
-  }
-  
-  .content-section {
-    order: 1;
-    max-height: none;
-  }
-  
-  .groups-card {
-    position: relative;
-    top: 0;
-    max-height: none;
-  }
-  
-  .stats-grid {
+  .overview-row {
     grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
   }
-  
-  .header-content {
-    padding: 0 12px;
-  }
-  
-  .logo-section {
-    gap: 12px;
-  }
-  
-  .app-title {
-    font-size: 22px;
-  }
-  
-  .app-subtitle {
-    font-size: 12px;
-  }
-  
-  .logo-icon {
-    width: 48px;
-    height: 48px;
-  }
-  
-  .glass-card {
-    padding: 24px;
-  }
-  
-  .content-wrapper {
-    padding: 12px;
+  .edit-group-btn {
+    grid-column: 1 / -1;
+    justify-self: end;
   }
 }
-
-@media (max-width: 600px) {
-  .stats-grid {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
-  
-  .app-title {
-    font-size: 20px;
-  }
-  
-  .app-subtitle {
-    display: none;
-  }
-  
-  .logo-icon {
-    width: 44px;
-    height: 44px;
-  }
-  
-  .modern-header {
-    padding: 0 12px;
-    height: 60px;
-  }
-  
-  .main-content {
-    padding-top: 60px !important;
-  }
-  
-  .content-section {
-    max-height: calc(100vh - 100px);
-  }
-  
-  .glass-card {
-    padding: 20px;
-    border-radius: 20px;
-  }
-  
-  .card-title {
-    font-size: 20px;
-  }
-  
-  .group-item {
-    padding: 16px;
-  }
-  
-  .group-name {
-    font-size: 16px;
-  }
-  
-  .stat-card {
-    padding: 20px;
-  }
-  
-  .stat-value {
-    font-size: 20px;
-  }
-  
-  .member-row {
-    padding: 16px;
-    flex-wrap: wrap;
-    gap: 12px;
-  }
-  
-  .content-wrapper {
-    padding: 8px;
-  }
-  
-  .layout-grid {
-    gap: 12px;
-  }
+@media (max-width: 900px) {
+  .sidebar { display: none; }
+  .content-area { padding: 16px; }
+  .overview-row { grid-template-columns: 1fr; }
+  .members-grid { grid-template-columns: 1fr; }
+  .section-card { padding: 20px; }
+  .empty-main { min-height: calc(100vh - var(--app-bar-height) - 40px); }
 }
-
-@media (max-width: 400px) {
-  .header-content {
-    padding: 0 8px;
-  }
-  
-  .logo-text {
-    display: none;
-  }
-  
-  .selected-chip {
-    font-size: 12px;
-    padding: 4px 8px;
-  }
-  
-  .create-btn {
-    height: 48px;
-    font-size: 14px;
-  }
-  
-  .glass-card {
-    padding: 16px;
-  }
+@media (max-width: 480px) {
+  .logo-sub { display: none; }
+  .bar-inner { padding: 0 12px; }
 }
 </style>

@@ -1,516 +1,566 @@
 <template>
-  <div class="glass-card calculations-card">
-    <div class="card-header">
-      <div class="d-flex align-center justify-space-between">
-        <div class="d-flex align-center">
-          <div class="icon-wrapper primary">
-            <v-icon icon="mdi-calculator" size="24"></v-icon>
+  <div class="calculations-wrapper">
+
+    <!-- ── Header Card ─────────────────────────────────── -->
+    <div class="calc-header section-card mb-4">
+      <div class="d-flex align-center justify-space-between flex-wrap gap-3">
+        <div class="d-flex align-center gap-3">
+          <div class="icon-badge">
+            <v-icon icon="mdi-calculator" size="22" color="white"></v-icon>
           </div>
-          <h2 class="card-title">Monthly Calculations</h2>
+          <div>
+            <h2 class="section-heading">Monthly Calculations</h2>
+            <p class="section-sub text-grey" v-if="calculations.length > 0">
+              {{ totalMonthsPaid }} of {{ calculations.length }} months completed &bull;
+              {{ assignedMonths }} assigned
+            </p>
+          </div>
         </div>
-        <v-btn 
-          color="primary" 
+        <v-btn
+          color="primary"
           prepend-icon="mdi-calculator-variant"
-          @click="calculateAndSave" 
+          @click="calculateAndSave"
           :disabled="!canCalculate"
           variant="flat"
+          rounded="lg"
           size="large"
-          :class="{ 'pulse': canCalculate }"
+          :class="{ 'pulse-glow': canCalculate && calculations.length === 0 }"
         >
-          Calculate & Save
+          {{ calculations.length > 0 ? 'Recalculate' : 'Calculate & Save' }}
         </v-btn>
       </div>
     </div>
-    
-    <div class="card-content">
-      <v-alert 
-        v-if="!canCalculate" 
-        type="warning" 
-        variant="tonal"
-        class="mb-4 alert-modern"
-        icon="mdi-alert"
-        rounded="lg"
-      >
-        <div class="font-weight-bold mb-1">Setup Required</div>
-        Please add members to the group first. Total rosca count should match total months.
-      </v-alert>
 
-      <v-alert 
-        v-if="totalRoscaCount !== groupData.totalMonths && members.length > 0" 
-        type="error" 
-        variant="tonal"
-        class="mb-4 alert-modern"
-        icon="mdi-alert-circle"
-        rounded="lg"
-      >
-        <div class="font-weight-bold mb-1">Mismatch Detected</div>
-        Total Rosca Count ({{ totalRoscaCount }}) does not match Total Months ({{ groupData.totalMonths }})
-      </v-alert>
+    <!-- ── Alerts ──────────────────────────────────────── -->
+    <v-alert
+      v-if="!canCalculate"
+      type="warning" variant="tonal" rounded="lg"
+      class="mb-3" icon="mdi-alert" density="compact"
+    >
+      <strong>Setup Required:</strong> Add members so total rosca count equals total months.
+    </v-alert>
+    <v-alert
+      v-if="totalRoscaCount !== groupData.totalMonths && members.length > 0"
+      type="error" variant="tonal" rounded="lg"
+      class="mb-3" icon="mdi-alert-circle" density="compact"
+    >
+      Total rosca count <strong>({{ totalRoscaCount }})</strong> doesn't match total months
+      <strong>({{ groupData.totalMonths }})</strong>. Please adjust member rosca counts.
+    </v-alert>
 
-      <!-- Summary Cards -->
-      <div v-if="calculations.length > 0" class="summary-cards mb-4">
-        <div class="summary-card">
-          <div class="summary-icon blue">
-            <v-icon icon="mdi-calendar-check" size="24"></v-icon>
-          </div>
-          <div class="summary-content">
-            <div class="summary-value">{{ totalMonthsPaid }} / {{ calculations.length }}</div>
-            <div class="summary-label">Months Paid</div>
-          </div>
-        </div>
-        <div class="summary-card">
-          <div class="summary-icon green">
-            <v-icon icon="mdi-cash-multiple" size="24"></v-icon>
-          </div>
-          <div class="summary-content">
-            <div class="summary-value">PKR {{ totalAmountPaid.toLocaleString() }}</div>
-            <div class="summary-label">Total Paid</div>
-          </div>
-        </div>
-        <div class="summary-card">
-          <div class="summary-icon purple">
-            <v-icon icon="mdi-cash-minus" size="24"></v-icon>
-          </div>
-          <div class="summary-content">
-            <div class="summary-value">PKR {{ totalAmountPending.toLocaleString() }}</div>
-            <div class="summary-label">Pending</div>
-          </div>
+    <!-- ── Stats Pills ─────────────────────────────────── -->
+    <div v-if="calculations.length > 0" class="stats-pills mb-4">
+      <div class="stat-pill green-pill">
+        <v-icon icon="mdi-check-circle" size="16"></v-icon>
+        <strong>{{ totalMonthsPaid }}</strong> Paid
+      </div>
+      <div class="stat-pill amber-pill">
+        <v-icon icon="mdi-clock-outline" size="16"></v-icon>
+        <strong>{{ calculations.length - totalMonthsPaid }}</strong> Pending
+      </div>
+      <div class="stat-pill blue-pill">
+        <v-icon icon="mdi-account-check" size="16"></v-icon>
+        <strong>{{ assignedMonths }}</strong> Assigned
+      </div>
+      <div class="stat-pill teal-pill">
+        <v-icon icon="mdi-cash-multiple" size="16"></v-icon>
+        <strong>PKR {{ totalAmountPaid.toLocaleString() }}</strong> Collected
+      </div>
+    </div>
+
+    <!-- ── Month Timeline ──────────────────────────────── -->
+    <div v-if="calculations.length > 0" class="timeline-card section-card mb-4">
+      <div class="d-flex align-center justify-space-between mb-3">
+        <span class="timeline-label">Month Progress</span>
+        <div class="d-flex gap-3">
+          <span class="legend-item">
+            <span class="leg-dot paid-dot"></span> Paid
+          </span>
+          <span class="legend-item">
+            <span class="leg-dot assigned-dot"></span> Assigned
+          </span>
+          <span class="legend-item">
+            <span class="leg-dot pending-dot"></span> Pending
+          </span>
         </div>
       </div>
+      <div class="timeline-track">
+        <template v-for="(calc, i) in calculations" :key="i">
+          <div
+            class="timeline-dot"
+            :class="getTimelineClass(calc)"
+            @click="openPanelIndex = i; tab = 'monthly'"
+            :title="`${formatMonth(calc.month)} — ${getStatusLabel(calc)}`"
+          >
+            <span class="dot-num">{{ i + 1 }}</span>
+          </div>
+          <div v-if="i < calculations.length - 1" class="dot-line"></div>
+        </template>
+      </div>
+    </div>
 
-      <v-tabs v-model="tab" color="primary" class="mb-4 modern-tabs">
-        <v-tab value="monthly" prepend-icon="mdi-calendar-month">
-          Monthly View
-        </v-tab>
-        <v-tab value="summary" prepend-icon="mdi-chart-box">
-          Member Summary
-        </v-tab>
-        <v-tab value="payments" prepend-icon="mdi-history">
-          Payment History
-        </v-tab>
+    <!-- ── Tabs + Content ─────────────────────────────── -->
+    <div v-if="calculations.length > 0" class="section-card">
+      <v-tabs v-model="tab" color="primary" class="calc-tabs mb-5" density="comfortable" slider-color="primary">
+        <v-tab value="monthly" prepend-icon="mdi-calendar-month">Monthly View</v-tab>
+        <v-tab value="summary" prepend-icon="mdi-chart-bar">Member Summary</v-tab>
+        <v-tab value="payments" prepend-icon="mdi-history">Payment History</v-tab>
       </v-tabs>
 
       <v-window v-model="tab">
+
+        <!-- ═══ Monthly View Tab ═══════════════════════ -->
         <v-window-item value="monthly">
-          <div v-if="calculations.length > 0">
-            <v-expansion-panels variant="accordion" class="month-panels">
-              <v-expansion-panel
-                v-for="(calc, index) in calculations"
-                :key="index"
-                :value="index"
-                class="month-panel"
-              >
-                <v-expansion-panel-title class="month-panel-title">
-                  <div class="d-flex align-center justify-space-between w-100 pr-4">
-                    <div class="d-flex align-center">
-                      <v-icon icon="mdi-calendar" color="primary" class="mr-3"></v-icon>
-                      <div>
-                        <div class="month-name-header">{{ formatMonth(calc.month) }}</div>
-                        <div class="month-subtitle">
-                          <v-chip 
-                            :color="calc.paymentReceived ? 'success' : 'warning'" 
-                            size="small" 
-                            variant="flat"
-                            class="mr-2"
-                          >
-                            <v-icon 
-                              :icon="calc.paymentReceived ? 'mdi-check-circle' : 'mdi-clock-outline'" 
-                              size="14"
-                              class="mr-1"
-                            ></v-icon>
-                            {{ calc.paymentReceived ? 'Paid' : 'Pending' }}
-                          </v-chip>
-                          <span class="text-caption text-grey" v-if="calc.receivingMember">
-                            Received by: {{ calc.receivingMember.name }}
-                          </span>
-                          <span class="text-caption text-grey" v-else>
-                            Received by: Not selected
-                          </span>
-                        </div>
+          <v-expansion-panels
+            v-model="openPanelIndex"
+            variant="accordion"
+            class="month-panels"
+          >
+            <v-expansion-panel
+              v-for="(calc, index) in calculations"
+              :key="index"
+              :value="index"
+              class="month-panel"
+              :class="getMonthPanelClass(calc)"
+            >
+              <!-- Panel Header -->
+              <v-expansion-panel-title class="panel-title-custom" :hide-actions="false">
+                <div class="panel-header-grid w-100 pr-2">
+                  <!-- Left: Month Info -->
+                  <div class="d-flex align-center gap-3">
+                    <div class="month-badge" :class="getMonthBadgeClass(calc)">{{ index + 1 }}</div>
+                    <div>
+                      <div class="month-name-text">{{ formatMonth(calc.month) }}</div>
+                      <div class="d-flex align-center gap-2 mt-1">
+                        <v-chip
+                          :color="calc.paymentReceived ? 'success' : calc.receivingMemberId ? 'primary' : 'warning'"
+                          size="x-small" variant="flat"
+                        >
+                          {{ getStatusLabel(calc) }}
+                        </v-chip>
+                        <span v-if="calc.receivingMember" class="receiver-label">
+                          <v-icon size="11" class="mr-1">mdi-account-arrow-left</v-icon>
+                          {{ calc.receivingMember.name }}
+                        </span>
                       </div>
                     </div>
-                    <div class="d-flex align-center gap-3">
-                      <v-chip color="success" variant="flat" size="large">
-                        <v-icon start icon="mdi-cash"></v-icon>
-                        PKR {{ calc.members.filter(m => m.amountGivenStatus).reduce((sum, m) => sum + m.amountGiven, 0).toLocaleString() }}
-                      </v-chip>
-                      <v-btn
-                        :color="calc.paymentReceived ? 'success' : 'warning'"
-                        :variant="calc.paymentReceived ? 'flat' : 'outlined'"
-                        size="small"
-                        @click.stop="togglePaymentStatus(index)"
-                        :prepend-icon="calc.paymentReceived ? 'mdi-check-circle' : 'mdi-clock-outline'"
-                      >
-                        {{ calc.paymentReceived ? 'Paid' : 'Mark as Paid' }}
-                      </v-btn>
-                    </div>
                   </div>
-                </v-expansion-panel-title>
-                
-                <v-expansion-panel-text>
-                  <div class="month-details">
-                    <div class="receiving-member-card">
-                      <div class="d-flex align-center">
-                        <div class="receiving-icon">
-                          <v-icon icon="mdi-account-check" color="success" size="28"></v-icon>
-                        </div>
-                        <div class="receiving-info">
-                          <div class="receiving-label">Receiving Member</div>
-                          <div class="receiving-name" v-if="calc.receivingMember">
-                            {{ calc.receivingMember.name }}
-                          </div>
-                          <div class="receiving-name text-grey" v-else>
-                            Not selected yet
-                          </div>
-                        </div>
+                  <!-- Right: Amount + Action -->
+                  <div class="d-flex align-center gap-3" @click.stop>
+                    <div class="text-right">
+                      <div class="pot-text">PKR {{ calc.totalPot.toLocaleString() }}</div>
+                      <div class="text-caption text-grey">
+                        {{ calc.members.filter(m => m.amountGivenStatus).length }}/{{ calc.members.length }} paid in
+                      </div>
+                    </div>
+                    <v-btn
+                      :color="calc.paymentReceived ? 'success' : 'warning'"
+                      :variant="calc.paymentReceived ? 'flat' : 'outlined'"
+                      size="small" rounded="lg"
+                      @click="togglePaymentStatus(index)"
+                      :prepend-icon="calc.paymentReceived ? 'mdi-check-circle' : 'mdi-clock-outline'"
+                    >
+                      {{ calc.paymentReceived ? 'Paid' : 'Mark Paid' }}
+                    </v-btn>
+                  </div>
+                </div>
+              </v-expansion-panel-title>
+
+              <!-- Panel Body -->
+              <v-expansion-panel-text>
+                <div class="panel-body">
+
+                  <!-- Assignment Card -->
+                  <div class="assignment-card">
+                    <div class="assignment-card-title">
+                      <v-icon icon="mdi-account-cash" color="success" size="18"></v-icon>
+                      <span>Who Receives This Month?</span>
+                      <v-spacer></v-spacer>
+                      <v-chip v-if="calc.receivingMember" color="success" size="x-small" variant="tonal">
+                        Pot: PKR {{ calc.totalPot.toLocaleString() }}
+                      </v-chip>
+                    </div>
+                    <div class="assignment-card-body">
+                      <v-avatar :color="calc.receivingMember ? 'success' : 'grey-lighten-2'" size="52" class="flex-shrink-0">
+                        <span v-if="calc.receivingMember" class="text-white font-weight-bold">
+                          {{ calc.receivingMember.name?.charAt(0).toUpperCase() }}
+                        </span>
+                        <v-icon v-else icon="mdi-account-question" color="grey"></v-icon>
+                      </v-avatar>
+                      <div class="flex-grow-1">
                         <v-select
                           :model-value="calc.receivingMemberId"
                           :items="getAvailableMembers(index)"
-                          item-title="name"
+                          item-title="displayTitle"
                           item-value="id"
-                          label="Select Member"
+                          :item-props="item => ({ disabled: item.isDisabled })"
+                          label="Select receiving member"
                           variant="outlined"
                           density="compact"
                           hide-details
-                          class="receiving-member-select"
-                          @update:model-value="(value) => updateReceivingMember(index, value)"
+                          clearable
                           prepend-inner-icon="mdi-account-circle"
-                        ></v-select>
-                      </div>
-                    </div>
-                    
-                    <div class="month-totals mb-4">
-                      <div class="total-row">
-                        <span class="total-label">Total Expected:</span>
-                        <span class="total-value">PKR {{ calc.totalPot.toLocaleString() }}</span>
-                      </div>
-                      <div class="total-row">
-                        <span class="total-label">Members Given:</span>
-                        <span class="total-value">
-                          {{ calc.members.filter(m => m.amountGivenStatus).length }} / {{ calc.members.length }}
-                        </span>
-                      </div>
-                      <div class="total-row">
-                        <span class="total-label">Total Given (All Members):</span>
-                        <span class="total-value">PKR {{ calc.members.reduce((sum, m) => sum + m.amountGiven, 0).toLocaleString() }}</span>
-                      </div>
-                    </div>
-                    
-                    <div class="members-table-modern">
-                      <div class="table-header">
-                        <div class="table-col">Member</div>
-                        <div class="table-col center">Rosca</div>
-                        <div class="table-col center">Given Status</div>
-                        <div class="table-col right">Amount Given</div>
-                        <div class="table-col right">Amount Received</div>
-                      </div>
-                      <div
-                        v-for="member in calc.members"
-                        :key="member.memberId"
-                        class="table-row"
-                        :class="{ 'receiving': member.amountReceived > 0 }"
-                      >
-                        <div class="table-col">
-                          <div class="d-flex align-center">
-                            <v-icon 
-                              v-if="member.amountReceived > 0" 
-                              icon="mdi-star" 
-                              color="success" 
-                              size="16" 
-                              class="mr-2"
-                            ></v-icon>
-                            <span class="member-name-cell">{{ member.memberName }}</span>
-                          </div>
-                        </div>
-                        <div class="table-col center">
-                          <v-chip size="small" color="primary" variant="flat">
-                            {{ member.roscaCount }}
-                          </v-chip>
-                        </div>
-                        <div class="table-col center">
-                          <v-btn
-                            :color="member.amountGivenStatus ? 'success' : 'warning'"
-                            :variant="member.amountGivenStatus ? 'flat' : 'outlined'"
-                            size="small"
-                            @click="toggleGivenStatus(index, member.memberId)"
-                            :prepend-icon="member.amountGivenStatus ? 'mdi-check-circle' : 'mdi-close-circle'"
-                          >
-                            {{ member.amountGivenStatus ? 'Given' : 'Not Given' }}
-                          </v-btn>
-                        </div>
-                        <div class="table-col right">
-                          <span class="amount-text">PKR {{ member.amountGiven.toLocaleString() }}</span>
-                        </div>
-                        <div class="table-col right">
-                          <span 
-                            :class="member.amountReceived > 0 ? 'amount-received' : 'amount-text'"
-                          >
-                            {{ member.amountReceived > 0 ? '+' : '' }}PKR {{ member.amountReceived.toLocaleString() }}
+                          @update:model-value="(val) => updateReceivingMember(index, val)"
+                        >
+                          <template #item="{ item, props: itemProps }">
+                            <v-list-item v-bind="itemProps">
+                              <template #prepend>
+                                <v-avatar
+                                  :color="item.raw.isDisabled ? 'grey-lighten-3' : 'primary'"
+                                  size="30"
+                                  class="mr-2"
+                                >
+                                  <span style="font-size:11px; color:white;">{{ item.raw.name?.charAt(0) }}</span>
+                                </v-avatar>
+                              </template>
+                              <template #append v-if="item.raw.isDisabled">
+                                <v-chip color="error" size="x-small" variant="tonal">Full</v-chip>
+                              </template>
+                            </v-list-item>
+                          </template>
+                        </v-select>
+                        <div v-if="hasDisabledMembers(index)" class="hint-bar mt-2">
+                          <v-icon size="13" color="warning" class="mr-1">mdi-information-outline</v-icon>
+                          <span class="text-caption text-medium-emphasis">
+                            "Full" members have used all their rosca slots. Clear their assignment from another month to free a slot.
                           </span>
                         </div>
                       </div>
                     </div>
                   </div>
-                </v-expansion-panel-text>
-              </v-expansion-panel>
-            </v-expansion-panels>
-          </div>
-          
-          <div v-else class="empty-state">
-            <div class="empty-icon">
-              <v-icon icon="mdi-calculator-variant-outline" size="64"></v-icon>
+
+                  <!-- Totals Row -->
+                  <div class="totals-row">
+                    <div class="total-chip-card">
+                      <div class="tc-label">Total Pot</div>
+                      <div class="tc-value">PKR {{ calc.totalPot.toLocaleString() }}</div>
+                    </div>
+                    <div class="total-chip-card">
+                      <div class="tc-label">Paid In</div>
+                      <div class="tc-value">
+                        {{ calc.members.filter(m => m.amountGivenStatus).length }} /
+                        {{ calc.members.length }}
+                      </div>
+                    </div>
+                    <div class="total-chip-card">
+                      <div class="tc-label">Collected</div>
+                      <div class="tc-value success-val">
+                        PKR {{ calc.members.filter(m => m.amountGivenStatus).reduce((s, m) => s + m.amountGiven, 0).toLocaleString() }}
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Members Grid -->
+                  <div class="members-table">
+                    <div class="mt-header">
+                      <div>Member</div>
+                      <div class="tc">Rosca</div>
+                      <div class="tc">Status</div>
+                      <div class="tr">Given</div>
+                      <div class="tr">Received</div>
+                    </div>
+                    <div
+                      v-for="member in calc.members"
+                      :key="member.memberId"
+                      class="mt-row"
+                      :class="{ 'mt-row-receiver': member.amountReceived > 0 }"
+                    >
+                      <div class="d-flex align-center gap-2">
+                        <v-avatar :color="member.amountReceived > 0 ? 'success' : 'primary'" size="30">
+                          <span style="font-size:11px; color:white; font-weight:700;">{{ member.memberName?.charAt(0) }}</span>
+                        </v-avatar>
+                        <div>
+                          <div class="mt-name">{{ member.memberName }}</div>
+                          <v-chip v-if="member.amountReceived > 0" color="success" size="x-small" variant="flat" class="mt-1">Receiver</v-chip>
+                        </div>
+                      </div>
+                      <div class="tc">
+                        <v-chip size="x-small" color="primary" variant="tonal">{{ member.roscaCount }}</v-chip>
+                      </div>
+                      <div class="tc">
+                        <v-btn
+                          :color="member.amountGivenStatus ? 'success' : 'default'"
+                          :variant="member.amountGivenStatus ? 'flat' : 'outlined'"
+                          size="x-small" rounded="lg"
+                          @click="toggleGivenStatus(index, member.memberId)"
+                          :prepend-icon="member.amountGivenStatus ? 'mdi-check' : 'mdi-cash'"
+                        >
+                          {{ member.amountGivenStatus ? 'Paid' : 'Not Paid' }}
+                        </v-btn>
+                      </div>
+                      <div class="tr mt-amount-grey">PKR {{ member.amountGiven.toLocaleString() }}</div>
+                      <div class="tr" :class="member.amountReceived > 0 ? 'mt-amount-green' : 'mt-amount-grey'">
+                        {{ member.amountReceived > 0 ? '+' : '' }}PKR {{ member.amountReceived.toLocaleString() }}
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+              </v-expansion-panel-text>
+            </v-expansion-panel>
+          </v-expansion-panels>
+        </v-window-item>
+
+        <!-- ═══ Member Summary Tab ═════════════════════ -->
+        <v-window-item value="summary">
+          <div class="summary-grid">
+            <div v-for="member in members" :key="member.id || member.name" class="summary-card">
+              <v-avatar color="primary" size="52" class="mb-3">
+                <span class="text-white text-h6 font-weight-bold">{{ member.name.charAt(0).toUpperCase() }}</span>
+              </v-avatar>
+              <div class="sc-name">{{ member.name }}</div>
+              <div class="mb-2">
+                <v-chip color="primary" size="x-small" variant="tonal">{{ member.roscaCount }} Rosca</v-chip>
+              </div>
+              <div class="sc-stats">
+                <div class="sc-stat">
+                  <div class="sc-stat-val text-error">PKR {{ getMemberSummary(member).totalGiven.toLocaleString() }}</div>
+                  <div class="sc-stat-label">Total Given</div>
+                </div>
+                <div class="sc-divider"></div>
+                <div class="sc-stat">
+                  <div class="sc-stat-val text-success">PKR {{ getMemberSummary(member).totalReceived.toLocaleString() }}</div>
+                  <div class="sc-stat-label">Total Received</div>
+                </div>
+                <div class="sc-divider"></div>
+                <div class="sc-stat">
+                  <div class="sc-stat-val">{{ getMemberSummary(member).monthsParticipated }}</div>
+                  <div class="sc-stat-label">Months</div>
+                </div>
+              </div>
+              <div class="sc-net" :class="getMemberSummary(member).totalReceived >= getMemberSummary(member).totalGiven ? 'net-positive' : 'net-negative'">
+                Net: {{ getMemberSummary(member).totalReceived >= getMemberSummary(member).totalGiven ? '+' : '' }}PKR
+                {{ (getMemberSummary(member).totalReceived - getMemberSummary(member).totalGiven).toLocaleString() }}
+              </div>
             </div>
-            <h3 class="empty-title">No calculations available</h3>
-            <p class="empty-text">Click "Calculate & Save" to generate calculations</p>
           </div>
         </v-window-item>
 
-        <v-window-item value="summary">
-          <div v-if="calculations.length > 0" class="summary-table-modern">
-            <div class="table-header">
-              <div class="table-col">Member</div>
-              <div class="table-col right">Total Given</div>
-              <div class="table-col right">Total Received</div>
-              <div class="table-col center">Months</div>
-            </div>
+        <!-- ═══ Payment History Tab ════════════════════ -->
+        <v-window-item value="payments">
+          <div class="payment-list">
             <div
-              v-for="member in members"
-              :key="member.id || member.name"
-              class="table-row summary-row"
+              v-for="(calc, index) in calculations"
+              :key="index"
+              class="payment-item"
+              :class="calc.paymentReceived ? 'pi-paid' : 'pi-pending'"
             >
-              <div class="table-col">
-                <div class="d-flex align-center">
-                  <v-avatar color="primary" size="32" class="mr-2">
-                    {{ member.name.charAt(0).toUpperCase() }}
-                  </v-avatar>
-                  <span class="member-name-cell">{{ member.name }}</span>
+              <div class="pi-left">
+                <v-icon
+                  :icon="calc.paymentReceived ? 'mdi-check-circle' : 'mdi-clock-outline'"
+                  :color="calc.paymentReceived ? 'success' : 'warning'"
+                  size="26"
+                ></v-icon>
+                <div class="ml-3">
+                  <div class="pi-month">{{ formatMonth(calc.month) }}</div>
+                  <div class="pi-recipient text-grey">
+                    <v-icon size="12" class="mr-1">mdi-account</v-icon>
+                    {{ calc.receivingMember?.name || 'Not assigned' }}
+                  </div>
+                  <div class="text-caption text-grey" v-if="calc.paymentDate">{{ formatDate(calc.paymentDate) }}</div>
                 </div>
               </div>
-              <div class="table-col right">
-                <span class="amount-text">PKR {{ getMemberSummary(member).totalGiven.toLocaleString() }}</span>
-              </div>
-              <div class="table-col right">
-                <span class="amount-received">PKR {{ getMemberSummary(member).totalReceived.toLocaleString() }}</span>
-              </div>
-              <div class="table-col center">
-                <v-chip size="small" color="info" variant="flat">
-                  {{ getMemberSummary(member).monthsParticipated }}
+              <div class="pi-right">
+                <div class="pi-amount">PKR {{ calc.totalPot.toLocaleString() }}</div>
+                <v-chip :color="calc.paymentReceived ? 'success' : 'warning'" size="small" variant="flat">
+                  {{ calc.paymentReceived ? 'Paid' : 'Pending' }}
                 </v-chip>
               </div>
             </div>
           </div>
-          
-          <div v-else class="empty-state">
-            <div class="empty-icon">
-              <v-icon icon="mdi-chart-box-outline" size="64"></v-icon>
+
+          <!-- Summary Bar -->
+          <div class="payment-summary-bar">
+            <div class="psb-item">
+              <div class="psb-val text-success">PKR {{ totalAmountPaid.toLocaleString() }}</div>
+              <div class="psb-label">Total Paid</div>
             </div>
-            <h3 class="empty-title">No calculations available</h3>
-            <p class="empty-text">Click "Calculate & Save" to generate calculations</p>
+            <div class="psb-divider"></div>
+            <div class="psb-item">
+              <div class="psb-val text-warning">PKR {{ totalAmountPending.toLocaleString() }}</div>
+              <div class="psb-label">Pending</div>
+            </div>
+            <div class="psb-divider"></div>
+            <div class="psb-item">
+              <div class="psb-val">PKR {{ (totalAmountPaid + totalAmountPending).toLocaleString() }}</div>
+              <div class="psb-label">Grand Total</div>
+            </div>
           </div>
         </v-window-item>
 
-        <v-window-item value="payments">
-          <div v-if="calculations.length > 0" class="payment-history">
-            <h3 class="section-title mb-4">Payment History</h3>
-            <div class="payment-list">
-              <div
-                v-for="(calc, index) in calculations"
-                :key="index"
-                class="payment-item"
-                :class="{ 'paid': calc.paymentReceived, 'pending': !calc.paymentReceived }"
-              >
-                <div class="payment-month">
-                  <v-icon 
-                    :icon="calc.paymentReceived ? 'mdi-check-circle' : 'mdi-clock-outline'" 
-                    :color="calc.paymentReceived ? 'success' : 'warning'"
-                    size="24"
-                    class="mr-3"
-                  ></v-icon>
-                  <div>
-                    <div class="payment-month-name">{{ formatMonth(calc.month) }}</div>
-                    <div class="payment-date" v-if="calc.paymentDate">
-                      Paid on: {{ formatDate(calc.paymentDate) }}
-                    </div>
-                  </div>
-                </div>
-                <div class="payment-details">
-                  <div class="payment-recipient">
-                    <v-icon icon="mdi-account" size="16" class="mr-1"></v-icon>
-                    {{ calc.receivingMember?.name }}
-                  </div>
-                  <div class="payment-amount">
-                    PKR {{ calc.totalPot.toLocaleString() }}
-                  </div>
-                </div>
-                <div class="payment-status">
-                  <v-chip 
-                    :color="calc.paymentReceived ? 'success' : 'warning'" 
-                    variant="flat"
-                    size="small"
-                  >
-                    {{ calc.paymentReceived ? 'Paid' : 'Pending' }}
-                  </v-chip>
-                </div>
-              </div>
-            </div>
-            
-            <div class="payment-summary mt-6">
-              <h4 class="summary-title mb-3">Payment Summary</h4>
-              <div class="summary-stats">
-                <div class="stat-item">
-                  <div class="stat-label">Total Payments Made</div>
-                  <div class="stat-value success">PKR {{ totalAmountPaid.toLocaleString() }}</div>
-                </div>
-                <div class="stat-item">
-                  <div class="stat-label">Pending Payments</div>
-                  <div class="stat-value warning">PKR {{ totalAmountPending.toLocaleString() }}</div>
-                </div>
-                <div class="stat-item">
-                  <div class="stat-label">Total Amount</div>
-                  <div class="stat-value">PKR {{ (totalAmountPaid + totalAmountPending).toLocaleString() }}</div>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <div v-else class="empty-state">
-            <div class="empty-icon">
-              <v-icon icon="mdi-history" size="64"></v-icon>
-            </div>
-            <h3 class="empty-title">No payment history</h3>
-            <p class="empty-text">Generate calculations to see payment history</p>
-          </div>
-        </v-window-item>
       </v-window>
     </div>
+
+    <!-- ── Empty State ─────────────────────────────────── -->
+    <div v-else class="empty-calc section-card">
+      <v-icon icon="mdi-calculator-variant-outline" size="80" color="grey-lighten-1"></v-icon>
+      <h3 class="mt-4 mb-2 text-grey-darken-1">No Calculations Yet</h3>
+      <p class="text-grey">Add members and click "Calculate &amp; Save" to generate the monthly breakdown.</p>
+    </div>
+
   </div>
 </template>
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import { calculateMonthlyDistributions, calculateMemberSummary } from '../utils/roscaCalculator'
-import { saveMonthlyCalculations, getMonthlyCalculations, updateMonthPaymentStatus } from '../services/roscaService'
+import { saveMonthlyCalculations, getMonthlyCalculations } from '../services/roscaService'
 
 const props = defineProps({
-  groupData: {
-    type: Object,
-    required: true
-  },
-  members: {
-    type: Array,
-    default: () => []
-  },
-  groupId: {
-    type: String,
-    default: ''
-  }
+  groupData: { type: Object, required: true },
+  members:   { type: Array, default: () => [] },
+  groupId:   { type: String, default: '' }
 })
-
 const emit = defineEmits(['saved', 'error'])
 
-const tab = ref('monthly')
-const calculations = ref([])
+const tab            = ref('monthly')
+const calculations   = ref([])
+const openPanelIndex = ref(null)
 
-const totalRoscaCount = computed(() => {
-  return props.members.reduce((sum, member) => sum + (member.roscaCount || 0), 0)
-})
+// ── Computed ────────────────────────────────────────────────
 
-const canCalculate = computed(() => {
-  return props.members.length > 0 && totalRoscaCount.value === props.groupData.totalMonths
-})
+const totalRoscaCount = computed(() =>
+  props.members.reduce((s, m) => s + (m.roscaCount || 0), 0)
+)
 
-const totalMonthsPaid = computed(() => {
-  return calculations.value.filter(calc => calc.paymentReceived).length
-})
+const canCalculate = computed(() =>
+  props.members.length > 0 && totalRoscaCount.value === props.groupData.totalMonths
+)
 
-const totalAmountPaid = computed(() => {
-  return calculations.value
-    .filter(calc => calc.paymentReceived)
-    .reduce((sum, calc) => sum + calc.totalPot, 0)
-})
+const totalMonthsPaid = computed(() =>
+  calculations.value.filter(c => c.paymentReceived).length
+)
 
-const totalAmountPending = computed(() => {
-  return calculations.value
-    .filter(calc => !calc.paymentReceived)
-    .reduce((sum, calc) => sum + calc.totalPot, 0)
-})
+const assignedMonths = computed(() =>
+  calculations.value.filter(c => c.receivingMemberId).length
+)
+
+const totalAmountPaid = computed(() =>
+  calculations.value.filter(c => c.paymentReceived).reduce((s, c) => s + c.totalPot, 0)
+)
+
+const totalAmountPending = computed(() =>
+  calculations.value.filter(c => !c.paymentReceived).reduce((s, c) => s + c.totalPot, 0)
+)
+
+// ── Helpers ─────────────────────────────────────────────────
+
+const getStatusLabel = (calc) => {
+  if (calc.paymentReceived) return 'Paid'
+  if (calc.receivingMemberId) return 'Assigned'
+  return 'Unassigned'
+}
+
+const getTimelineClass = (calc) => {
+  if (calc.paymentReceived) return 'tl-paid'
+  if (calc.receivingMemberId) return 'tl-assigned'
+  return 'tl-pending'
+}
+
+const getMonthPanelClass = (calc) => {
+  if (calc.paymentReceived) return 'border-success'
+  if (calc.receivingMemberId) return 'border-primary'
+  return 'border-warning'
+}
+
+const getMonthBadgeClass = (calc) => {
+  if (calc.paymentReceived) return 'badge-success'
+  if (calc.receivingMemberId) return 'badge-primary'
+  return 'badge-warning'
+}
+
+const formatMonth = (s) => {
+  if (!s) return '-'
+  const [yr, mo] = s.split('-')
+  return new Date(yr, parseInt(mo) - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+}
+
+const formatDate = (d) => {
+  if (!d) return '-'
+  const dt = d.toDate ? d.toDate() : new Date(d)
+  return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+// ── BUG FIX: getAvailableMembers now shows ALL members ──────
+// Members who've used all their rosca slots in OTHER months are shown
+// with `isDisabled: true` so the user can see why they can't be selected.
+// The currently-selected member is always enabled (so you can change selection).
+
+const getAvailableMembers = (currentMonthIndex) => {
+  const currentReceivingMemberId = calculations.value[currentMonthIndex]?.receivingMemberId
+
+  const receivingCounts = new Map()
+  calculations.value.forEach((calc, idx) => {
+    if (idx === currentMonthIndex) return  // skip current month (we're editing it)
+    if (calc.receivingMemberId) {
+      receivingCounts.set(
+        calc.receivingMemberId,
+        (receivingCounts.get(calc.receivingMemberId) || 0) + 1
+      )
+    }
+  })
+
+  return props.members.map(member => {
+    const timesReceived  = receivingCounts.get(member.id) || 0
+    const roscaCount     = member.roscaCount || 1
+    const isAtLimit      = timesReceived >= roscaCount
+    const isCurrent      = member.id === currentReceivingMemberId
+    const isDisabled     = isAtLimit && !isCurrent
+
+    return {
+      ...member,
+      isDisabled,
+      displayTitle: isDisabled
+        ? `${member.name}  (Full — ${timesReceived}/${roscaCount} slots used)`
+        : member.name
+    }
+  })
+}
+
+const hasDisabledMembers = (monthIndex) =>
+  getAvailableMembers(monthIndex).some(m => m.isDisabled)
 
 const getMemberSummary = (member) => {
-  if (calculations.value.length === 0) {
-    return { totalGiven: 0, totalReceived: 0, netAmount: 0, monthsParticipated: 0 }
+  if (!calculations.value.length) return { totalGiven: 0, totalReceived: 0, monthsParticipated: 0 }
+  const id = member.id || props.members.indexOf(member)
+  return calculateMemberSummary(calculations.value, id)
+}
+
+// ── Firebase helpers ────────────────────────────────────────
+
+// Converts Vue reactive proxy + Firestore Timestamps to plain JS before saving
+const serializeForFirestore = (data) => {
+  if (data === null || data === undefined) return data
+  if (data instanceof Date) return data
+  if (data && typeof data.toDate === 'function') return data.toDate()
+  if (Array.isArray(data)) return data.map(serializeForFirestore)
+  if (typeof data === 'object') {
+    const plain = {}
+    for (const k of Object.keys(data)) plain[k] = serializeForFirestore(data[k])
+    return plain
   }
-  const memberId = member.id || props.members.indexOf(member)
-  return calculateMemberSummary(calculations.value, memberId)
+  return data
 }
 
-// Get available members for receiving (filtered based on roscaCount)
-const getAvailableMembers = (currentMonthIndex) => {
-  if (!calculations.value || calculations.value.length === 0) {
-    return props.members
-  }
-  
-  // Get current month's receiving member ID (if any)
-  const currentReceivingMemberId = calculations.value[currentMonthIndex]?.receivingMemberId
-  
-  // Count how many times each member has been selected as receivingMember
-  const receivingCounts = new Map()
-  
-  calculations.value.forEach((calc, index) => {
-    // Skip current month if it's already set (to allow changing)
-    if (index === currentMonthIndex) {
-      return
-    }
-    
-    if (calc.receivingMemberId) {
-      const count = receivingCounts.get(calc.receivingMemberId) || 0
-      receivingCounts.set(calc.receivingMemberId, count + 1)
-    }
-  })
-  
-  // Filter members who haven't reached their roscaCount limit
-  // OR include the currently selected member (so they can be changed)
-  return props.members.filter(member => {
-    const memberId = member.id
-    const timesReceived = receivingCounts.get(memberId) || 0
-    const roscaCount = member.roscaCount || 1
-    
-    // Include if:
-    // 1. They haven't reached their limit yet, OR
-    // 2. They are currently selected (to allow changing the selection)
-    return timesReceived < roscaCount || memberId === currentReceivingMemberId
-  })
+const saveToFirebase = async () => {
+  if (!props.groupId) return
+  const plain = serializeForFirestore(calculations.value)
+  await saveMonthlyCalculations(props.groupId, plain)
 }
 
-const formatMonth = (monthString) => {
-  if (!monthString) return '-'
-  const [year, month] = monthString.split('-')
-  const date = new Date(year, parseInt(month) - 1)
-  return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-}
-
-const formatDate = (date) => {
-  if (!date) return '-'
-  const d = date.toDate ? date.toDate() : new Date(date)
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-}
+// ── Actions ─────────────────────────────────────────────────
 
 const togglePaymentStatus = async (monthIndex) => {
   if (!props.groupId || !calculations.value[monthIndex]) return
-  
   const newStatus = !calculations.value[monthIndex].paymentReceived
-  
+  calculations.value[monthIndex].paymentReceived = newStatus
+  calculations.value[monthIndex].paymentDate = newStatus ? new Date() : null
   try {
-    // Update locally first for immediate feedback
-    calculations.value[monthIndex].paymentReceived = newStatus
-    calculations.value[monthIndex].paymentDate = newStatus ? new Date() : null
-    
-    // Save to Firebase
-    await saveCalculationsToFirebase()
+    await saveToFirebase()
     emit('saved')
-  } catch (error) {
-    console.error('Error updating payment status:', error)
-    emit('error', error.message)
-    // Revert the change on error
+  } catch (err) {
+    console.error(err)
+    emit('error', err.message)
     calculations.value[monthIndex].paymentReceived = !newStatus
     calculations.value[monthIndex].paymentDate = null
   }
@@ -518,646 +568,435 @@ const togglePaymentStatus = async (monthIndex) => {
 
 const toggleGivenStatus = async (monthIndex, memberId) => {
   if (!props.groupId || !calculations.value[monthIndex]) return
-  
   const member = calculations.value[monthIndex].members.find(m => m.memberId === memberId)
   if (!member) return
-  
   const newStatus = !member.amountGivenStatus
-  
+  member.amountGivenStatus = newStatus
+  member.amountGivenDate   = newStatus ? new Date() : null
   try {
-    // Update locally first
-    member.amountGivenStatus = newStatus
-    member.amountGivenDate = newStatus ? new Date() : null
-    
-    // Save to Firebase
-    await saveCalculationsToFirebase()
+    await saveToFirebase()
     emit('saved')
-  } catch (error) {
-    console.error('Error updating given status:', error)
-    emit('error', error.message)
-    // Revert the change on error
+  } catch (err) {
+    console.error(err)
+    emit('error', err.message)
     member.amountGivenStatus = !newStatus
-    member.amountGivenDate = null
+    member.amountGivenDate   = null
   }
 }
 
+// BUG FIX: now handles null (clearing an assignment)
 const updateReceivingMember = async (monthIndex, memberId) => {
   if (!props.groupId || !calculations.value[monthIndex]) return
-  
+
   const calc = calculations.value[monthIndex]
-  const selectedMember = props.members.find(m => m.id === memberId)
-  
-  if (!selectedMember) return
-  
-  try {
-    // Update locally first
-    const oldReceivingMemberId = calc.receivingMemberId
-    calc.receivingMemberId = memberId
-    calc.receivingMember = selectedMember
-    
-    // Reset all members' received amounts
-    calc.members.forEach(m => {
-      m.amountReceived = 0
-    })
-    
-    // Set the receiving member's amount
-    const receivingMember = calc.members.find(m => m.memberId === memberId)
-    if (receivingMember) {
-      receivingMember.amountReceived = calc.totalPot
+
+  // ── Clear assignment ──
+  if (memberId === null || memberId === undefined) {
+    const prev = calc.receivingMemberId
+    calc.receivingMemberId = null
+    calc.receivingMember   = null
+    calc.members.forEach(m => { m.amountReceived = 0 })
+    try {
+      await saveToFirebase()
+      emit('saved')
+    } catch (err) {
+      console.error(err)
+      emit('error', 'Failed to clear assignment: ' + err.message)
+      // restore
+      calc.receivingMemberId = prev
+      calc.receivingMember   = props.members.find(m => m.id === prev) || null
+      await loadSavedCalculations()
     }
-    
-    // Save to Firebase
-    await saveCalculationsToFirebase()
+    return
+  }
+
+  // ── Assign a member ──
+  const selectedMember = props.members.find(m => m.id === memberId)
+  if (!selectedMember) return
+
+  const prevId = calc.receivingMemberId
+  calc.receivingMemberId = memberId
+  calc.receivingMember   = selectedMember
+
+  calc.members.forEach(m => { m.amountReceived = 0 })
+  const target = calc.members.find(m => m.memberId === memberId)
+  if (target) target.amountReceived = calc.totalPot
+
+  try {
+    await saveToFirebase()
     emit('saved')
-  } catch (error) {
-    console.error('Error updating receiving member:', error)
-    emit('error', error.message)
-    // Reload from Firebase on error
+  } catch (err) {
+    console.error(err)
+    emit('error', err.message)
+    calc.receivingMemberId = prevId
+    calc.receivingMember   = props.members.find(m => m.id === prevId) || null
     await loadSavedCalculations()
   }
 }
 
-const saveCalculationsToFirebase = async () => {
-  if (!props.groupId) return
-  
-  try {
-    await saveMonthlyCalculations(props.groupId, calculations.value)
-  } catch (error) {
-    console.error('Error saving calculations:', error)
-    throw error
-  }
-}
-
 const calculateAndSave = async () => {
-  if (!canCalculate.value) {
-    return
-  }
-
+  if (!canCalculate.value) return
   try {
-    const newCalculations = calculateMonthlyDistributions(props.groupData, props.members)
-    
-    // Preserve payment status, given status, and receiving member if recalculating
-    newCalculations.forEach((calc, index) => {
-      if (calculations.value[index]) {
-        const oldCalc = calculations.value[index]
-        calc.paymentReceived = oldCalc.paymentReceived || false
-        calc.paymentDate = oldCalc.paymentDate || null
-        calc.receivingMemberId = oldCalc.receivingMemberId || null
-        calc.receivingMember = oldCalc.receivingMember || null
-        
-        // Preserve given status for each member
-        calc.members.forEach(member => {
-          const oldMember = oldCalc.members.find(m => m.memberId === member.memberId)
-          if (oldMember) {
-            member.amountGivenStatus = oldMember.amountGivenStatus || false
-            member.amountGivenDate = oldMember.amountGivenDate || null
-            member.amountReceived = oldMember.amountReceived || 0
-          } else {
-            member.amountGivenStatus = false
-            member.amountGivenDate = null
-            member.amountReceived = 0
+    const fresh = calculateMonthlyDistributions(props.groupData, props.members)
+    fresh.forEach((c, i) => {
+      if (calculations.value[i]) {
+        const old = calculations.value[i]
+        c.paymentReceived    = old.paymentReceived  || false
+        c.paymentDate        = old.paymentDate      || null
+        c.receivingMemberId  = old.receivingMemberId || null
+        c.receivingMember    = old.receivingMember   || null
+        c.members.forEach(m => {
+          const om = old.members.find(x => x.memberId === m.memberId)
+          if (om) {
+            m.amountGivenStatus = om.amountGivenStatus || false
+            m.amountGivenDate   = om.amountGivenDate   || null
+            m.amountReceived    = om.amountReceived     || 0
           }
         })
-        
-        // Update amounts if receiving member was set
-        if (calc.receivingMemberId) {
-          const totalPot = calc.totalPot
-          calc.members.forEach(member => {
-            const isReceiving = member.memberId === calc.receivingMemberId
-            member.amountReceived = isReceiving ? totalPot : 0
+        if (c.receivingMemberId) {
+          c.members.forEach(m => {
+            m.amountReceived = m.memberId === c.receivingMemberId ? c.totalPot : 0
           })
         }
       } else {
-        calc.paymentReceived = false
-        calc.paymentDate = null
-        calc.receivingMemberId = null
-        calc.receivingMember = null
-        calc.members.forEach(member => {
-          member.amountGivenStatus = false
-          member.amountGivenDate = null
-          member.amountReceived = 0
+        c.paymentReceived   = false
+        c.paymentDate       = null
+        c.receivingMemberId = null
+        c.receivingMember   = null
+        c.members.forEach(m => {
+          m.amountGivenStatus = false
+          m.amountGivenDate   = null
+          m.amountReceived    = 0
         })
       }
     })
-    
-    calculations.value = newCalculations
-    
+    calculations.value = fresh
     if (props.groupId) {
-      await saveCalculationsToFirebase()
+      await saveToFirebase()
       emit('saved')
     }
-  } catch (error) {
-    console.error('Error calculating:', error)
-    emit('error', error.message)
+  } catch (err) {
+    console.error(err)
+    emit('error', err.message)
   }
 }
 
 const loadSavedCalculations = async () => {
   if (!props.groupId) return
-  
   try {
     const saved = await getMonthlyCalculations(props.groupId)
-    if (saved.length > 0) {
-      const latest = saved[0]
-      if (latest.calculations) {
-        calculations.value = latest.calculations
-      }
+    if (saved.length > 0 && saved[0].calculations) {
+      calculations.value = saved[0].calculations
     }
-  } catch (error) {
-    console.error('Error loading saved calculations:', error)
+  } catch (err) {
+    console.error(err)
   }
 }
 
-// Remove auto-recalculation - only calculate when button is clicked
-onMounted(() => {
-  loadSavedCalculations()
-})
-
-watch(() => props.groupId, () => {
-  if (props.groupId) {
-    loadSavedCalculations()
-  }
-})
+onMounted(() => loadSavedCalculations())
+watch(() => props.groupId, () => { if (props.groupId) loadSavedCalculations() })
 </script>
 
 <style scoped>
-.glass-card {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  border-radius: 20px;
-  padding: 32px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.04);
-  border: 1px solid rgba(0, 0, 0, 0.06);
-}
-
-.card-header {
-  margin-bottom: 24px;
-}
-
-.card-title {
-  font-size: 24px;
-  font-weight: 700;
-  margin: 0;
-  color: #1e293b;
-}
-
-.icon-wrapper {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-right: 12px;
-}
-
-.icon-wrapper.primary {
-  background: linear-gradient(135deg, #0891B2 0%, #0D9488 100%);
-  color: white;
-}
-
-.alert-modern {
-  border-radius: 16px;
-  border: none;
-}
-
-.modern-tabs {
-  border-radius: 12px;
-}
-
-.pulse {
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0%, 100% {
-    box-shadow: 0 4px 12px rgba(8, 145, 178, 0.3);
-  }
-  50% {
-    box-shadow: 0 4px 20px rgba(8, 145, 178, 0.5);
-  }
-}
-
-.summary-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
-.summary-card {
-  background: white;
-  border-radius: 16px;
-  padding: 20px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  border: 1px solid rgba(0, 0, 0, 0.05);
-}
-
-.summary-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-}
-
-.summary-icon.blue {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-}
-
-.summary-icon.green {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-}
-
-.summary-icon.purple {
-  background: linear-gradient(135deg, #0891B2 0%, #0D9488 100%);
-}
-
-.summary-value {
-  font-size: 20px;
-  font-weight: 800;
-  color: #1e293b;
-  margin-bottom: 4px;
-}
-
-.summary-label {
-  font-size: 12px;
-  color: #64748b;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.month-panels {
+/* ── Layout ─────────────────────────────────────────────── */
+.calculations-wrapper {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
 }
+
+.section-card {
+  background: var(--bg-glass-strong);
+  backdrop-filter: blur(20px);
+  border-radius: var(--radius-xl);
+  padding: 28px;
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-md);
+}
+
+/* ── Header ─────────────────────────────────────────────── */
+.calc-header { padding: 20px 24px; }
+
+.section-heading {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+.section-sub {
+  font-size: 13px;
+  margin: 0;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.calc-tabs :deep(.v-tab--selected) {
+  font-weight: 700;
+}
+
+/* ── Stats Pills ─────────────────────────────────────────── */
+.stats-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.stat-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: var(--radius-full);
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  transition: transform var(--duration-fast) var(--ease-spring);
+}
+.stat-pill:hover { transform: translateY(-2px); }
+.green-pill  { background: rgba(16,185,129,0.1); color: var(--color-success-dark); border-color: rgba(16,185,129,0.2); }
+.amber-pill  { background: rgba(245,158,11,0.1); color: var(--color-warning-dark); border-color: rgba(245,158,11,0.2); }
+.blue-pill   { background: rgba(13,148,136,0.1); color: #0f766e; border-color: rgba(13,148,136,0.2); }
+.teal-pill   { background: rgba(5,150,105,0.1); color: var(--brand-primary-dark); border-color: rgba(5,150,105,0.2); }
+
+/* ── Timeline ────────────────────────────────────────────── */
+.timeline-card { padding: 20px 24px; }
+.timeline-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.timeline-track {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 0;
+  margin: 16px 0 12px;
+  padding: 8px 4px;
+  overflow-x: auto;
+  width: 100%;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+.timeline-dot {
+  width: 42px; height: 42px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: transform var(--duration-normal) var(--ease-spring), box-shadow var(--duration-normal);
+  flex-shrink: 0;
+}
+.timeline-dot:hover { transform: scale(1.15); box-shadow: var(--shadow-md); }
+.dot-num { font-size: 12px; font-weight: 800; color: white; }
+.dot-line { flex: 1; height: 3px; background: var(--border-default); min-width: 6px; max-width: 40px; border-radius: 2px; }
+
+.tl-paid     { background: linear-gradient(135deg, #10b981, #059669); box-shadow: 0 2px 8px rgba(16,185,129,0.35); }
+.tl-assigned { background: var(--brand-gradient); box-shadow: 0 2px 8px rgba(5,150,105,0.35); }
+.tl-pending  { background: var(--bg-muted); border: 2px solid var(--border-default); }
+.tl-pending .dot-num { color: var(--text-muted); }
+
+.legend-item {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; color: var(--text-muted); font-weight: 500;
+}
+.leg-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.paid-dot     { background: var(--color-success); }
+.assigned-dot { background: var(--brand-primary); }
+.pending-dot  { background: var(--bg-muted); border: 2px solid var(--text-muted); }
+
+/* ── Expansion Panels ────────────────────────────────────── */
+.month-panels { display: flex; flex-direction: column; gap: 10px; }
 
 .month-panel {
-  border-radius: 16px;
+  border-radius: var(--radius-md) !important;
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-left: 4px solid var(--border-default) !important;
+  box-shadow: var(--shadow-sm) !important;
+  background: var(--bg-muted) !important;
+  transition: box-shadow var(--duration-normal), transform var(--duration-normal);
 }
+.month-panel:hover { box-shadow: var(--shadow-md) !important; }
 
-.month-panel-title {
-  padding: 20px 24px;
-}
+.border-success { border-left-color: var(--color-success) !important; }
+.border-primary { border-left-color: var(--brand-primary) !important; }
+.border-warning { border-left-color: var(--color-warning) !important; }
 
-.month-name-header {
-  font-size: 18px;
-  font-weight: 700;
-  color: #1e293b;
-  margin-bottom: 4px;
-}
+.panel-title-custom { padding: 16px 20px !important; min-height: unset !important; }
 
-.month-subtitle {
+.panel-header-grid {
   display: flex;
   align-items: center;
-  gap: 8px;
-}
-
-.payment-switch {
-  margin: 0;
-}
-
-.month-details {
-  padding: 20px 0;
-}
-
-.receiving-member-card {
-  background: linear-gradient(135deg, #10b98115 0%, #05966915 100%);
-  border-radius: 16px;
-  padding: 20px;
-  margin-bottom: 20px;
-  border: 2px solid #10b98130;
-}
-
-.receiving-member-card .d-flex {
-  align-items: center;
-  gap: 0;
-}
-
-.receiving-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-right: 16px;
-  flex-shrink: 0;
-}
-
-.receiving-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.receiving-member-select {
-  flex-shrink: 0;
-  min-width: 200px;
-}
-
-.receiving-label {
-  font-size: 12px;
-  color: #64748b;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.receiving-name {
-  font-size: 18px;
-  font-weight: 700;
-  color: #1e293b;
-  margin-top: 4px;
-}
-
-.month-totals {
-  background: #f8fafc;
-  border-radius: 12px;
-  padding: 16px;
-  border-left: 4px solid #0891B2;
-}
-
-.total-row {
-  display: flex;
   justify-content: space-between;
-  padding: 8px 0;
-  font-size: 14px;
-}
-
-.total-row.highlight {
-  border-top: 2px solid #e2e8f0;
-  margin-top: 8px;
-  padding-top: 12px;
-  font-weight: 700;
-}
-
-.total-label {
-  color: #64748b;
-}
-
-.total-value {
-  color: #1e293b;
-  font-weight: 600;
-}
-
-.total-value.success {
-  color: #10b981;
-  font-size: 16px;
-}
-
-.members-table-modern {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.table-header {
-  display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
   gap: 16px;
-  padding: 12px 16px;
-  background: #f8fafc;
-  border-radius: 12px;
-  font-weight: 700;
-  font-size: 14px;
-  color: #64748b;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+}
+.month-badge {
+  width: 42px; height: 42px;
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 800; color: white;
+  flex-shrink: 0;
+}
+.badge-success { background: linear-gradient(135deg, #10b981, #059669); }
+.badge-primary { background: var(--brand-gradient); }
+.badge-warning { background: linear-gradient(135deg, #f59e0b, #d97706); }
+
+.month-name-text { font-size: 16px; font-weight: 700; color: var(--text-primary); }
+.receiver-label  { font-size: 12px; color: var(--text-muted); display: flex; align-items: center; }
+.pot-text        { font-size: 18px; font-weight: 800; color: var(--text-primary); letter-spacing: -0.02em; }
+
+/* ── Panel Body ──────────────────────────────────────────── */
+.panel-body { padding: 4px 0 8px; display: flex; flex-direction: column; gap: 20px; }
+
+.assignment-card {
+  background: var(--brand-gradient-subtle);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+}
+.assignment-card-title {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; font-weight: 700; color: var(--text-secondary);
+  text-transform: uppercase; letter-spacing: 0.05em;
+  margin-bottom: 14px;
+}
+.assignment-card-body {
+  display: flex; align-items: flex-start; gap: 14px;
+}
+.hint-bar {
+  display: flex; align-items: flex-start; gap: 4px;
+  background: rgba(245,158,11,0.08);
+  border-radius: var(--radius-xs); padding: 8px 12px;
+  border: 1px solid rgba(245,158,11,0.15);
 }
 
-.table-row {
+.totals-row { display: flex; gap: 12px; flex-wrap: wrap; }
+.total-chip-card {
+  flex: 1; min-width: 120px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  box-shadow: var(--shadow-xs);
+  border: 1px solid var(--border-subtle);
+  transition: transform var(--duration-fast);
+}
+.total-chip-card:hover { transform: translateY(-2px); }
+.tc-label {
+  font-size: 10px; color: var(--text-muted);
+  font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;
+}
+.tc-value  { font-size: 16px; font-weight: 800; color: var(--text-primary); }
+.success-val { color: var(--color-success-dark); }
+
+/* Members Table */
+.members-table {
+  display: flex; flex-direction: column; gap: 4px;
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-md); overflow: hidden;
+}
+.mt-header {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
-  gap: 16px;
-  padding: 16px;
-  border-radius: 12px;
-  transition: all 0.2s ease;
+  grid-template-columns: 2fr 0.7fr 1.2fr 1fr 1fr;
+  gap: 12px; padding: 12px 16px;
+  background: var(--bg-muted);
+  font-size: 10px; font-weight: 700; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.mt-row {
+  display: grid;
+  grid-template-columns: 2fr 0.7fr 1.2fr 1fr 1fr;
+  gap: 12px; padding: 12px 16px;
   align-items: center;
+  transition: background var(--duration-fast);
+  background: var(--bg-elevated);
 }
+.mt-row:hover { background: var(--bg-hover); }
+.mt-row-receiver { background: linear-gradient(90deg, rgba(16,185,129,0.06) 0%, transparent 100%); }
+.tc { text-align: center; }
+.tr { text-align: right; }
+.mt-name { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.mt-amount-grey  { font-size: 13px; color: var(--text-muted); font-weight: 500; }
+.mt-amount-green { font-size: 13px; font-weight: 700; color: var(--color-success-dark); }
 
-.summary-table-modern .table-header {
-  grid-template-columns: 2fr 1fr 1fr 1fr;
+/* ── Summary Tab ─────────────────────────────────────────── */
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 14px;
 }
-
-.summary-table-modern .table-row {
-  grid-template-columns: 2fr 1fr 1fr 1fr;
-}
-
-.table-row:hover {
-  background: #f8fafc;
-}
-
-.table-row.receiving {
-  background: linear-gradient(135deg, #10b98108 0%, #05966908 100%);
-  border-left: 3px solid #10b981;
-}
-
-.table-col {
-  font-size: 14px;
-}
-
-.table-col.center {
+.summary-card {
+  background: var(--bg-muted);
+  border-radius: var(--radius-md);
+  padding: 24px 20px;
   text-align: center;
+  border: 1px solid var(--border-subtle);
+  transition: all var(--duration-normal) var(--ease-spring);
 }
-
-.table-col.right {
-  text-align: right;
+.summary-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-strong);
+  background: var(--bg-elevated);
 }
-
-.member-name-cell {
-  font-weight: 600;
-  color: #1e293b;
+.sc-name  { font-size: 16px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
+.sc-stats { display: flex; align-items: center; justify-content: center; gap: 0; margin: 16px 0 12px; }
+.sc-stat  { flex: 1; }
+.sc-stat-val   { font-size: 14px; font-weight: 800; margin-bottom: 2px; }
+.sc-stat-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04px; font-weight: 600; }
+.sc-divider    { width: 1px; height: 36px; background: var(--border-default); }
+.sc-net {
+  font-size: 13px; font-weight: 700;
+  padding: 6px 14px; border-radius: var(--radius-xs);
+  display: inline-block;
 }
+.net-positive { background: rgba(16,185,129,0.1); color: var(--color-success-dark); }
+.net-negative { background: rgba(239,68,68,0.1); color: var(--color-error-dark); }
 
-.amount-text {
-  color: #64748b;
-}
-
-.amount-received {
-  color: #10b981;
-  font-weight: 700;
-}
-
-.summary-table-modern {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.summary-row {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
-
-.summary-row:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-}
-
-.payment-history {
-  padding: 8px 0;
-}
-
-.section-title {
-  font-size: 20px;
-  font-weight: 700;
-  color: #1e293b;
-}
-
-.payment-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
+/* ── Payment History Tab ─────────────────────────────────── */
+.payment-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
 .payment-item {
-  background: white;
-  border-radius: 16px;
-  padding: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  border-left: 4px solid #e2e8f0;
-  transition: all 0.3s ease;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px; border-radius: var(--radius-md);
+  border-left: 4px solid var(--border-default);
+  background: var(--bg-muted);
+  transition: all var(--duration-normal) var(--ease-smooth);
 }
+.payment-item:hover { transform: translateX(4px); box-shadow: var(--shadow-sm); }
+.pi-paid    { border-left-color: var(--color-success); background: linear-gradient(90deg, rgba(16,185,129,0.06), var(--bg-muted)); }
+.pi-pending { border-left-color: var(--color-warning); background: linear-gradient(90deg, rgba(245,158,11,0.06), var(--bg-muted)); }
+.pi-left    { display: flex; align-items: center; }
+.pi-month   { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+.pi-recipient { font-size: 12px; color: var(--text-muted); display: flex; align-items: center; margin-top: 2px; }
+.pi-right   { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.pi-amount  { font-size: 18px; font-weight: 800; color: var(--text-primary); letter-spacing: -0.02em; }
 
-.payment-item.paid {
-  border-left-color: #10b981;
-  background: linear-gradient(135deg, #10b98108 0%, #05966908 100%);
+.payment-summary-bar {
+  display: flex; align-items: center;
+  background: var(--bg-muted); border-radius: var(--radius-md); padding: 20px 28px;
+  border: 1px solid var(--border-subtle);
 }
+.psb-item { flex: 1; text-align: center; }
+.psb-val   { font-size: 22px; font-weight: 800; margin-bottom: 4px; letter-spacing: -0.02em; }
+.psb-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+.psb-divider { width: 1px; height: 48px; background: var(--border-default); }
 
-.payment-item.pending {
-  border-left-color: #f59e0b;
-  background: linear-gradient(135deg, #f59e0b08 0%, #d9770608 100%);
-}
-
-.payment-item:hover {
-  transform: translateX(4px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-}
-
-.payment-month {
-  display: flex;
-  align-items: center;
-  flex: 1;
-}
-
-.payment-month-name {
-  font-size: 16px;
-  font-weight: 700;
-  color: #1e293b;
-  margin-bottom: 4px;
-}
-
-.payment-date {
-  font-size: 12px;
-  color: #64748b;
-}
-
-.payment-details {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
-  margin-right: 16px;
-}
-
-.payment-recipient {
-  font-size: 14px;
-  color: #64748b;
-  display: flex;
-  align-items: center;
-}
-
-.payment-amount {
-  font-size: 18px;
-  font-weight: 700;
-  color: #1e293b;
-}
-
-.payment-summary {
-  background: #f8fafc;
-  border-radius: 16px;
-  padding: 24px;
-  border: 2px solid #e2e8f0;
-}
-
-.summary-title {
-  font-size: 18px;
-  font-weight: 700;
-  color: #1e293b;
-}
-
-.summary-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
-}
-
-.stat-item {
+/* ── Empty State ─────────────────────────────────────────── */
+.empty-calc {
   text-align: center;
-  padding: 16px;
-  background: white;
-  border-radius: 12px;
+  padding: 60px 24px;
 }
+.empty-calc h3 { font-size: 20px; font-weight: 700; color: var(--text-primary); }
 
-.stat-label {
-  font-size: 12px;
-  color: #64748b;
-  margin-bottom: 8px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
+.gap-3 { gap: 12px; }
 
-.stat-value {
-  font-size: 24px;
-  font-weight: 800;
-  color: #1e293b;
-}
-
-.stat-value.success {
-  color: #10b981;
-}
-
-.stat-value.warning {
-  color: #f59e0b;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 48px 24px;
-}
-
-.empty-icon {
-  margin-bottom: 16px;
-  opacity: 0.5;
-}
-
-.empty-title {
-  font-size: 20px;
-  font-weight: 700;
-  color: #1e293b;
-  margin-bottom: 8px;
-}
-
-.empty-text {
-  font-size: 14px;
-  color: #64748b;
-}
-
-.gap-3 {
-  gap: 12px;
+@media (max-width: 768px) {
+  .section-card { padding: 20px; }
+  .mt-header, .mt-row {
+    grid-template-columns: 1.5fr 1fr 1fr;
+  }
+  .mt-header > :nth-child(4),
+  .mt-header > :nth-child(5),
+  .mt-row > :nth-child(4),
+  .mt-row > :nth-child(5) { display: none; }
+  .panel-header-grid { flex-direction: column; align-items: flex-start; }
 }
 </style>

@@ -789,7 +789,6 @@ const formatMonth = (s) => {
   .sidebar { display: none; }
   .content-area { padding: 16px; }
   .overview-row { grid-template-columns: 1fr; }
-  .members-grid { grid-template-columns: 1fr; }
   .section-card { padding: 20px; }
   .empty-main { min-height: calc(100vh - var(--app-bar-height) - 40px); }
 }
